@@ -1,11 +1,16 @@
 import json
 import logging
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
-PROGRESS_FILE = Path("progress_smc.json")
+
+# На Render: установи DATA_DIR=/data (с Render Disk) или оставь по умолчанию
+_data_dir = Path(os.getenv("DATA_DIR", "."))
+_data_dir.mkdir(parents=True, exist_ok=True)
+PROGRESS_FILE = _data_dir / "progress_smc.json"
 
 DEFAULT_DEADLINE_DAYS = 7
 MAX_EXTENSIONS = 3
@@ -19,17 +24,22 @@ def load_progress():
         try:
             data = json.loads(PROGRESS_FILE.read_text(encoding="utf-8"))
             user_progress = {int(k): v for k, v in data.items()}
+            logger.info(f"Прогресс загружен: {len(user_progress)} пользователей")
         except Exception as e:
             logger.error(f"Ошибка загрузки прогресса: {e}")
             user_progress = {}
+    else:
+        logger.info("Файл прогресса не найден, начинаем с нуля")
 
 
 def save_progress():
     try:
-        PROGRESS_FILE.write_text(
+        tmp = PROGRESS_FILE.with_suffix(".tmp")
+        tmp.write_text(
             json.dumps(user_progress, ensure_ascii=False, indent=2),
-            encoding="utf-8"
+            encoding="utf-8",
         )
+        tmp.replace(PROGRESS_FILE)
     except Exception as e:
         logger.error(f"Ошибка сохранения прогресса: {e}")
 
@@ -53,13 +63,13 @@ def get_user_state(user_id: int) -> Dict[str, Any]:
 
 
 RANKS = [
-    (0,   "🪨 Новичок"),
-    (100, "⚔️ Стажёр"),
-    (250, "🥉 Аналитик"),
-    (500, "🥈 Трейдер"),
-    (900, "🥇 Профи"),
-    (1500,"💎 Мастер SMC"),
-    (2500,"🔮 Архитектор рынка"),
+    (0,    "🪨 Новичок"),
+    (100,  "⚔️ Стажёр"),
+    (250,  "🥉 Аналитик"),
+    (500,  "🥈 Трейдер"),
+    (900,  "🥇 Профи"),
+    (1500, "💎 Мастер SMC"),
+    (2500, "🔮 Архитектор рынка"),
 ]
 
 
@@ -99,30 +109,28 @@ def is_deadline_expired(state: Dict[str, Any]) -> bool:
 
 def reset_user_progress(user_id: int):
     state = get_user_state(user_id)
-    state["xp"] = 0
-    state["level"] = 1
-    state["rank"] = "🪨 Новичок"
-    state["module_index"] = 0
-    state["completed_quests"] = []
-    state["active_quest"] = None
-    state["homework_status"] = "idle"
-    state["module_deadline"] = None
-    state["deadline_extensions"] = 0
-    state["quiz_state"] = None
+    state.update({
+        "xp": 0, "level": 1, "rank": "🪨 Новичок",
+        "module_index": 0, "completed_quests": [],
+        "active_quest": None, "homework_status": "idle",
+        "module_deadline": None, "deadline_extensions": 0,
+        "quiz_state": None,
+    })
     save_progress()
 
 
 def get_leaderboard(limit: int = 10) -> List[Dict[str, Any]]:
-    entries = []
-    for uid, st in user_progress.items():
-        entries.append({
+    entries = [
+        {
             "user_id": uid,
             "name": st.get("name", str(uid)),
             "xp": st.get("xp", 0),
             "level": st.get("level", 1),
             "rank": st.get("rank", "🪨 Новичок"),
             "module": st.get("module_index", 0) + 1,
-        })
+        }
+        for uid, st in user_progress.items()
+    ]
     return sorted(entries, key=lambda x: x["xp"], reverse=True)[:limit]
 
 
