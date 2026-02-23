@@ -1690,8 +1690,23 @@ CHART_MAP = {
 }
 
 
-def generate_chart(lesson_key: str) -> Optional[io.BytesIO]:
-    func = CHART_MAP.get(lesson_key)
-    if not func:
-        return None
-    return func()
+def generate_chart(lesson_key: str):
+    # Простейший пример: разные данные для разных уроков, если нужно
+    x = [1, 2, 3, 4, 5]
+    if lesson_key == "what_is_smc":
+        y = [1, 2, 1, 3, 2]
+    else:
+        y = [2, 3, 2, 4, 3]
+
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.plot(x, y, marker="o")
+    ax.set_title(f"Пример графика: {lesson_key}")
+    ax.set_xlabel("Время")
+    ax.set_ylabel("Цена")
+    fig.tight_layout()
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
