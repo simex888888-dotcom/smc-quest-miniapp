@@ -5,11 +5,11 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: BOT_TOKEN
+      - key: 8505971843:AAHJDrETopJ8D_Ww9avB6MWbtpO_rnXXJqk
         sync: false
       - key: WEBHOOK_URL
         value: https://smc-quest-miniapp.onrender.com
-      - key: ADMIN_ID
+      - key: 445677777
         sync: false
       - key: DATA_DIR
         value: /tmp
