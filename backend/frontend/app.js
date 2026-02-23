@@ -113,18 +113,34 @@ function setProgress(completed, total) {
 }
 
 // ── RENDER MODULES ────────────────────────────────────────────────────────
-function renderModules(modules) {
+function renderModules(modules, currentModuleIndex) {
   const container = $("#modulesList");
   container.innerHTML = "";
+  const curIdx = currentModuleIndex ?? 0;
+
   modules.forEach((mod, idx) => {
     const card = el("div", "module-card");
     const header = el("div", "module-header");
-    const title  = el("div", "module-title", `Модуль ${idx + 1}: ${mod.title}`);
+
+    const titleText = `Модуль ${idx + 1}: ${mod.title}`;
+    const title  = el("div", "module-title", titleText);
+    const status = el("div", "module-status-text");
+
+    if (idx < curIdx) {
+      status.textContent = "✅ Пройден";
+    } else if (idx === curIdx) {
+      status.textContent = "🟢 Текущий модуль";
+    } else {
+      status.textContent = "🔒 Закрыт";
+      card.classList.add("module-locked");
+    }
+
     const chev   = el("div", "module-chevron", "▼");
-    header.append(title, chev);
+    header.append(title, status, chev);
     card.append(header);
 
     const list = el("div", "lesson-list");
+
     (mod.lessons || []).forEach(key => {
       const meta  = state.lessonsMetaCache[key];
       const name  = meta ? meta.title : key;
@@ -132,15 +148,30 @@ function renderModules(modules) {
       const lname = el("div", "lesson-name", name);
       const arr   = el("div", "lesson-arrow", "›");
       item.append(lname, arr);
-      item.addEventListener("click", () => openLesson(key));
+
+      // Разрешаем открывать уроки только в текущем или пройденных модулях
+      if (idx <= curIdx) {
+        item.addEventListener("click", () => openLesson(key));
+      } else {
+        item.classList.add("lesson-locked");
+      }
+
       list.appendChild(item);
     });
 
     card.appendChild(list);
-    header.addEventListener("click", () => card.classList.toggle("open"));
+
+    // Разворачивать/сворачивать тоже только если модуль доступен
+    if (idx <= curIdx) {
+      header.addEventListener("click", () => card.classList.toggle("open"));
+    } else {
+      card.classList.add("collapsed");
+    }
+
     container.appendChild(card);
   });
 }
+
 
 // ── RENDER QUESTS ─────────────────────────────────────────────────────────
 function renderQuests(resp) {
@@ -582,7 +613,7 @@ async function init() {
 
     // 4. Рендерим
     renderHeader(userData);
-    renderModules(modulesData.modules || []);
+    renderModules(modulesData.modules || [], userData.module_index ?? 0);
     renderQuests(questsData);
     renderLeaderboard(lbData);
 
