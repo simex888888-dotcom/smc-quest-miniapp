@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>SMC Quest</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-left">
+        <span id="userRank">🪨</span>
+        <span id="userName">Загрузка...</span>
+      </div>
+      <div class="header-right">
+        <span class="xp-badge">⭐ <span id="userXP">0</span> XP</span>
+        <span class="lvl-badge">Lvl <span id="userLvl">1</span></span>
+      </div>
+    </header>
+
+    <!-- PROGRESS BAR -->
+    <div class="progress-section">
+      <div class="progress-info">
+        <span id="moduleName">Модуль 1</span>
+        <span id="deadlineText"></span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <!-- КНОПКА СТАРТА -->
+      <button id="btn-start" class="btn-start-quest" style="margin-top:10px;">
+        🚀 Начать обучение
+      </button>
+    </div>
+
+    <!-- NAV TABS -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="lessons" onclick="switchTab('lessons')">📚 Уроки</button>
+      <button class="tab" data-tab="quests" onclick="switchTab('quests')">⚔️ Квесты</button>
+      <button class="tab" data-tab="leaderboard" onclick="switchTab('leaderboard')">🏆 Рейтинг</button>
+    </nav>
+
+    <!-- LESSONS TAB -->
+    <div id="tab-lessons" class="tab-content active">
+      <div id="modulesList"></div>
+    </div>
+
+    <!-- QUESTS TAB -->
+    <div id="tab-quests" class="tab-content">
+      <div id="questsList"></div>
+    </div>
+
+    <!-- LEADERBOARD TAB -->
+    <div id="tab-leaderboard" class="tab-content">
+      <div id="leaderboardList"></div>
+    </div>
+  </div>
+
+  <!-- LESSON MODAL -->
+  <div id="lessonModal" class="modal hidden">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('lessonModal')">✕</button>
+      <h2 id="lessonTitle"></h2>
+      <div id="lessonArticle" class="article-text"></div>
+      <div id="chartContainer" class="chart-container">
+        <div class="chart-loading">📊 Загрузка графика...</div>
+        <img id="chartImg" src="" alt="Chart" style="display:none;"/>
+      </div>
+      <a id="lessonVideo" href="#" target="_blank" class="video-link">▶️ Смотреть видео</a>
+    </div>
+  </div>
+
+  <!-- QUIZ MODAL -->
+  <div id="quizModal" class="modal hidden">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('quizModal')">✕</button>
+      <div id="quizProgress" class="quiz-progress"></div>
+      <h3 id="quizQuestion" class="quiz-question"></h3>
+      <div id="quizOptions" class="quiz-options"></div>
+      <div id="quizFeedback" class="quiz-feedback hidden"></div>
+    </div>
+  </div>
+
+  <!-- RESULT MODAL -->
+  <div id="resultModal" class="modal hidden">
+    <div class="modal-content result-content">
+      <div id="resultEmoji" class="result-emoji"></div>
+      <h2 id="resultTitle"></h2>
+      <p id="resultText"></p>
+      <button class="btn-primary" onclick="closeModal('resultModal')">Закрыть</button>
+    </div>
+  </div>
+
+  <!-- ВАЖНО: app.js в самом конце -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
