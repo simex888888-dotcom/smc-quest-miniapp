@@ -446,8 +446,8 @@ function switchTab(name) {
 window.switchTab = switchTab;
 
 // ── MODALS ────────────────────────────────────────────────────────────────
-function openModal(id)  { const sel = id.startsWith('#') ? id : '#'+id; $(sel)?.classList.remove("hidden"); if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light"); }
-function closeModal(id) { const sel = id.startsWith('#') ? id : '#'+id; $(sel)?.classList.add("hidden"); }
+function openModal(id)  { $(id)?.classList.remove("hidden"); if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light"); }
+function closeModal(id) { $(id)?.classList.add("hidden"); }
 window.closeModal = closeModal;
 
 // ── MARKDOWN RENDERER ─────────────────────────────────────────────────────
@@ -684,29 +684,20 @@ function renderQuests(resp) {
 
     const hw = state.userState?.homework_status;
     if (q.is_active && q.type === "task") {
-      const statuses = {
-        pending:  ["⏳ На проверке", "pending"],
-        approved: ["✅ Принято",    "approved"],
-        revision: ["🔄 На доработке","revision"],
-        rejected: ["❌ Не принято", "rejected"],
-      };
+      const statuses = { pending: ["⏳ На проверке", "pending"], approved: ["✅ Принято","approved"], rejected: ["❌ Отклонено","rejected"] };
       const [txt, cls] = statuses[hw] || [];
       if (txt) badges.appendChild(el("div", `quest-status-badge status-${cls}`, txt));
     }
 
     const desc = el("div", "quest-desc", q.description || "");
 
-    const hw = state.userState?.homework_status;
-    const canResubmit = q.is_active && q.type === "task" && (hw === "revision" || hw === "rejected");
-    const btnLabel = q.completed
-      ? "✓ Выполнено"
-      : q.type === "quiz"
-        ? "▶ Начать квиз"
-        : canResubmit
-          ? "🔄 Отправить повторно"
-          : "📋 Открыть задание";
-    const btn = el("button", "btn-quest", btnLabel);
-    btn.disabled = q.completed && !canResubmit;
+    const btn = el("button", "btn-quest",
+      q.completed
+        ? "✓ Выполнено"
+        : q.type === "quiz"
+          ? "▶ Начать квиз"
+          : "📋 Открыть задание");
+    btn.disabled = q.completed;
     btn.addEventListener("click", (e) => {
       if (q.type === "quiz") startQuiz(q.id, q.title, q.xp_reward, e.currentTarget);
       else openTask(q.id, q.title, q.xp_reward, q.description);
@@ -958,7 +949,7 @@ async function submitCurrentTask() {
     if (data.ok) {
       const statusEl = $("#taskStatus");
       statusEl.className = "task-status pending";
-      statusEl.textContent = "⏳ Задание отправлено! Преподаватель проверит в течение 24 часов.";
+      statusEl.textContent = "⏳ Задание отправлено! AI-ментор проверит в течение 24 часов.";
       btn.textContent = "✓ Отправлено";
       showToast("Задание отправлено на проверку!", "success");
       loadQuests();
@@ -992,97 +983,6 @@ function showResult(emoji, title, text, xp) {
 
 function onResultClose() { closeModal("#resultModal"); }
 window.onResultClose = onResultClose;
-
-// ── CHART LIGHTBOX ────────────────────────────────────────────────────────
-const cl = { scale: 1, panX: 0, panY: 0, startPanX: 0, startPanY: 0,
-             startDist: 0, startScale: 1, lastTap: 0, dragging: false };
-
-function openChartLightbox(src) {
-  const lb  = document.getElementById("chartLightbox");
-  const img = document.getElementById("clImg");
-  if (!lb || !img || !src) return;
-  img.src = src;
-  cl.scale = 1; cl.panX = 0; cl.panY = 0;
-  applyClTransform();
-  lb.classList.remove("hidden");
-  document.body.style.overflow = "hidden";
-}
-
-function closeChartLightbox() {
-  document.getElementById("chartLightbox")?.classList.add("hidden");
-  document.body.style.overflow = "";
-}
-
-function applyClTransform() {
-  const img = document.getElementById("clImg");
-  if (img) img.style.transform = `translate(${cl.panX}px, ${cl.panY}px) scale(${cl.scale})`;
-}
-
-function initChartLightbox() {
-  const vp = document.getElementById("clViewport");
-  if (!vp) return;
-
-  document.getElementById("clCloseBtn")?.addEventListener("click", closeChartLightbox);
-
-  // Permanent click handler on chart preview image
-  document.getElementById("chartImg")?.addEventListener("click", function () {
-    if (this.src && !this.src.endsWith("#")) openChartLightbox(this.src);
-  });
-
-  vp.addEventListener("touchstart", (e) => {
-    if (e.touches.length === 2) {
-      cl.startDist  = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
-                                 e.touches[0].clientY - e.touches[1].clientY);
-      cl.startScale = cl.scale;
-    } else if (e.touches.length === 1) {
-      const now = Date.now();
-      if (now - cl.lastTap < 280) {                // double-tap
-        cl.scale = cl.scale > 1.05 ? 1 : 2.5;
-        cl.panX  = 0; cl.panY = 0;
-        applyClTransform();
-        cl.lastTap = 0;
-        return;
-      }
-      cl.lastTap   = now;
-      cl.startPanX = e.touches[0].clientX - cl.panX;
-      cl.startPanY = e.touches[0].clientY - cl.panY;
-      cl.dragging  = true;
-    }
-  }, { passive: true });
-
-  vp.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-    if (e.touches.length === 2) {
-      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
-                              e.touches[0].clientY - e.touches[1].clientY);
-      cl.scale = Math.min(5, Math.max(1, cl.startScale * dist / cl.startDist));
-      if (cl.scale <= 1) { cl.panX = 0; cl.panY = 0; }
-      applyClTransform();
-    } else if (e.touches.length === 1 && cl.dragging && cl.scale > 1.05) {
-      cl.panX = e.touches[0].clientX - cl.startPanX;
-      cl.panY = e.touches[0].clientY - cl.startPanY;
-      applyClTransform();
-    }
-  }, { passive: false });
-
-  vp.addEventListener("touchend", () => {
-    cl.dragging = false;
-    if (cl.scale <= 1) { cl.scale = 1; cl.panX = 0; cl.panY = 0; applyClTransform(); }
-  });
-
-  // Tap backdrop (un-zoomed state) → close
-  vp.addEventListener("click", (e) => {
-    if (e.target === vp && cl.scale <= 1.05) closeChartLightbox();
-  });
-
-  // Mouse wheel zoom (desktop)
-  vp.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    cl.scale = Math.min(5, Math.max(1, cl.scale + (e.deltaY > 0 ? -0.2 : 0.2)));
-    if (cl.scale <= 1) { cl.panX = 0; cl.panY = 0; }
-    applyClTransform();
-  }, { passive: false });
-}
 
 // ── TOAST ─────────────────────────────────────────────────────────────────
 function showToast(msg, type = "info") {
@@ -1190,7 +1090,6 @@ async function init() {
 // ── BTN START ─────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   init();
-  initChartLightbox();
 
   document.getElementById("btn-start")?.addEventListener("click", () => {
     switchTab("lessons");

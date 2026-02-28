@@ -87,7 +87,6 @@ class AdminRejectRequest(BaseModel):
     user_id: int
     quest_id: str
     comment: Optional[str] = "Нужно доработать."
-    status: Optional[str] = "rejected"   # "rejected" or "revision"
 
 
 class ExtendRequest(BaseModel):
@@ -435,7 +434,7 @@ async def submit_task(req: QuestSubmitRequest):
     save_progress()
     return {
         "ok": True,
-        "message": "Задание принято на проверку. Преподаватель проверит в течение 24 часов.",
+        "message": "Задание принято на проверку. AI-ментор проверит в течение 24 часов.",
     }
 
 
@@ -585,10 +584,9 @@ async def admin_approve(req: AdminApproveRequest):
 async def admin_reject(req: AdminRejectRequest):
     check_admin(req.admin_id)
     state = get_user_state(req.user_id)
-    # "revision" = needs correction + resubmit; "rejected" = serious errors
-    state["homework_status"] = req.status if req.status in ("rejected", "revision") else "rejected"
+    state["homework_status"] = "rejected"
     save_progress()
-    return {"ok": True, "comment": req.comment, "status": state["homework_status"]}
+    return {"ok": True, "comment": req.comment}
 
 
 @app.post("/api/admin/extend")
