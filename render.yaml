@@ -2,14 +2,15 @@ services:
   - type: web
     name: smc-quest-miniapp
     env: python
-    buildCommand: pip install -r requirements.txt
+    rootDir: backend
+    buildCommand: pip install -r ../requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: 8505971843:AAHJDrETopJ8D_Ww9avB6MWbtpO_rnXXJqk
-        sync: false
+      - key: BOT_TOKEN
+        sync: false         # set manually in Render dashboard
       - key: WEBHOOK_URL
         value: https://smc-quest-miniapp.onrender.com
-      - key: 445677777
-        sync: false
+      - key: ADMIN_ID
+        sync: false         # set manually in Render dashboard
       - key: DATA_DIR
         value: /tmp
