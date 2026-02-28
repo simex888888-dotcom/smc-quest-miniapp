@@ -24,14 +24,19 @@ from progress import (
     get_user_state, save_progress, add_xp,
     set_module_deadline, is_deadline_expired,
     reset_user_progress, get_leaderboard,
-    user_progress, load_progress, MAX_EXTENSIONS,
+    user_progress, load_progress,
+    MAX_EXTENSIONS, DEFAULT_DEADLINE_HOURS,
+    update_streak, claim_daily_bonus, award_badge,
+    get_deadline_hours_remaining, apply_penalty_extension,
+    MODULE_PENALTIES, MODULE_FULL_REPURCHASE,
+    BADGE_DEFS, SMC_LEVELS, get_level_and_rank,
 )
 from lessons import LESSONS, MODULES
 from quests import QUESTS, QUIZZES
 from charts import generate_chart
 from bot import bot as telegram_bot, setup_webhook, process_update
 
-app = FastAPI(title="SMC Quest API", version="3.0.0")
+app = FastAPI(title="CHM Smart Money Academy API", version="4.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,16 +46,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Статика (frontend папка рядом с main.py) ──────────────────────────────────
+# ── Static frontend ───────────────────────────────────────────────────────────
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
-    logger.info(f"Фронтенд: {FRONTEND_DIR}")
+    logger.info(f"Frontend: {FRONTEND_DIR}")
 else:
-    logger.warning(f"Папка frontend не найдена: {FRONTEND_DIR}")
+    logger.warning(f"Frontend folder not found: {FRONTEND_DIR}")
 
 
-# ── MODELS ────────────────────────────────────────────────────────────────────
+# ── REQUEST MODELS ────────────────────────────────────────────────────────────
 
 class UserInitRequest(BaseModel):
     user_id: int
@@ -87,7 +92,13 @@ class AdminRejectRequest(BaseModel):
 class ExtendRequest(BaseModel):
     admin_id: int
     user_id: int
-    days: int = 7
+    days: int = 2
+
+
+class PenaltyPaymentRequest(BaseModel):
+    user_id: int
+    module_index: int
+    payment_type: str = "penalty"   # "penalty" or "repurchase"
 
 
 # ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -107,10 +118,41 @@ def try_advance_module(user_id: int) -> bool:
     completed = set(state["completed_quests"])
     if all(qid in completed for qid in module_quests):
         state["module_index"] += 1
-        set_module_deadline(state)
+        set_module_deadline(state, hours=DEFAULT_DEADLINE_HOURS)
         save_progress()
         return True
     return False
+
+
+def build_deadline_info(state: dict) -> dict:
+    """Build deadline info dict for API responses."""
+    dl = state.get("module_deadline")
+    hours_left = get_deadline_hours_remaining(state)
+    expired = is_deadline_expired(state)
+
+    info = {
+        "deadline": dl.split("T")[0] if dl else None,
+        "deadline_iso": dl,
+        "hours_remaining": round(hours_left, 2) if hours_left != float("inf") else None,
+        "deadline_expired": expired,
+        "extensions_used": state.get("deadline_extensions", 0),
+        "max_extensions": MAX_EXTENSIONS,
+        "can_extend": state.get("deadline_extensions", 0) < MAX_EXTENSIONS,
+    }
+
+    if not expired and hours_left != float("inf"):
+        if hours_left <= 1:
+            info["urgency"] = "critical"   # Red countdown
+        elif hours_left <= 6:
+            info["urgency"] = "danger"     # Pulsing red
+        elif hours_left <= 24:
+            info["urgency"] = "warning"    # Orange
+        else:
+            info["urgency"] = "normal"
+    else:
+        info["urgency"] = "expired" if expired else "none"
+
+    return info
 
 
 # ── ROUTES ────────────────────────────────────────────────────────────────────
@@ -120,15 +162,15 @@ async def root():
     index = FRONTEND_DIR / "index.html"
     if index.exists():
         return FileResponse(str(index))
-    return {"status": "SMC Quest API v3.0 running", "docs": "/docs"}
+    return {"status": "CHM Smart Money Academy API v4.0", "docs": "/docs"}
 
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "users": len(user_progress)}
+    return {"ok": True, "users": len(user_progress), "version": "4.0.0"}
 
 
-# ── USER ──
+# ── USER ──────────────────────────────────────────────────────────────────────
 
 @app.post("/api/user/init")
 async def user_init(req: UserInitRequest):
@@ -139,18 +181,49 @@ async def user_init(req: UserInitRequest):
         or str(req.user_id)
     )
     state["name"] = name
+
+    # Set initial deadline for module 0 (no deadline - free module)
     if state["module_index"] == 0 and not state.get("module_deadline"):
         set_module_deadline(state)
+
+    # Track daily streak
+    streak, is_new_day = update_streak(req.user_id)
+
+    # Daily bonus XP
+    daily_xp, got_bonus = claim_daily_bonus(req.user_id)
+
     save_progress()
-    return {"ok": True, "state": state}
+    return {
+        "ok": True,
+        "state": state,
+        "streak": streak,
+        "is_new_day": is_new_day,
+        "daily_bonus_xp": daily_xp if got_bonus else 0,
+    }
 
 
 @app.get("/api/user/{user_id}")
 async def get_user(user_id: int):
-    return get_user_state(user_id)
+    state = get_user_state(user_id)
+    return state
 
 
-# ── MODULES & LESSONS ──
+@app.get("/api/user/{user_id}/full")
+async def get_user_full(user_id: int):
+    """Full user state with computed deadline info."""
+    state = get_user_state(user_id)
+    result = dict(state)
+    result["deadline_info"] = build_deadline_info(state)
+    result["next_level_xp"] = None
+    current_xp = state.get("xp", 0)
+    for threshold, _lvl, _name in SMC_LEVELS:
+        if threshold > current_xp:
+            result["next_level_xp"] = threshold
+            break
+    return result
+
+
+# ── MODULES & LESSONS ────────────────────────────────────────────────────────
 
 @app.get("/api/modules")
 async def get_modules():
@@ -177,7 +250,7 @@ async def get_lesson(lesson_key: str):
     }
 
 
-# ── CHARTS ──
+# ── CHARTS ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/chart/{lesson_key}")
 async def get_chart(lesson_key: str):
@@ -196,7 +269,7 @@ async def get_chart_png(lesson_key: str):
     return Response(content=buf.read(), media_type="image/png")
 
 
-# ── QUESTS & QUIZZES ──
+# ── QUESTS & QUIZZES ─────────────────────────────────────────────────────────
 
 @app.get("/api/quests/{user_id}")
 async def get_quests(user_id: int):
@@ -216,14 +289,17 @@ async def get_quests(user_id: int):
         }
         for q in module_quests
     ]
-    deadline_expired = is_deadline_expired(state)
-    dl = state.get("module_deadline", "")
+
+    dl_info = build_deadline_info(state)
+
     return {
         "quests": result,
         "module_index": idx,
         "module_title": MODULES[idx]["title"] if idx < len(MODULES) else "Завершено",
-        "deadline_expired": deadline_expired,
-        "deadline": dl.split("T")[0] if dl else None,
+        "module_subtitle": MODULES[idx].get("subtitle", "") if idx < len(MODULES) else "",
+        "deadline_expired": dl_info["deadline_expired"],
+        "deadline": dl_info["deadline"],
+        "deadline_info": dl_info,
         "completed_count": len([q for q in result if q["completed"]]),
         "total_count": len(result),
     }
@@ -233,8 +309,13 @@ async def get_quests(user_id: int):
 async def start_quest(req: QuestSubmitRequest):
     state = get_user_state(req.user_id)
     if is_deadline_expired(state):
-        reset_user_progress(req.user_id)
-        return {"ok": False, "error": "deadline_expired", "message": "Дедлайн истёк, прогресс сброшен."}
+        return {
+            "ok": False,
+            "error": "deadline_expired",
+            "message": "Дедлайн истёк. Оплати штраф для продолжения.",
+            "penalty_amount": MODULE_PENALTIES.get(state["module_index"], 5),
+            "can_extend": state.get("deadline_extensions", 0) < MAX_EXTENSIONS,
+        }
 
     quest = next((q for q in QUESTS if q["id"] == req.quest_id), None)
     if not quest:
@@ -298,6 +379,11 @@ async def quiz_answer(req: QuizAnswerRequest):
                 state["active_quest"] = None
                 state["quiz_state"] = None
                 level, leveled_up = add_xp(req.user_id, quest["xp_reward"])
+
+                # Award "first blood" badge on first quiz
+                if len([q for q in state["completed_quests"] if "quiz" in q]) == 1:
+                    award_badge(req.user_id, "first_blood")
+
                 advanced = try_advance_module(req.user_id)
                 save_progress()
                 return {
@@ -306,6 +392,7 @@ async def quiz_answer(req: QuizAnswerRequest):
                     "xp_earned": quest["xp_reward"],
                     "new_level": level, "leveled_up": leveled_up,
                     "module_advanced": advanced,
+                    "rank": get_user_state(req.user_id)["rank"],
                 }
         else:
             state["quiz_state"] = None
@@ -324,15 +411,112 @@ async def quiz_answer(req: QuizAnswerRequest):
 async def submit_task(req: QuestSubmitRequest):
     state = get_user_state(req.user_id)
     if is_deadline_expired(state):
-        reset_user_progress(req.user_id)
-        return {"ok": False, "error": "deadline_expired"}
+        return {
+            "ok": False,
+            "error": "deadline_expired",
+            "penalty_amount": MODULE_PENALTIES.get(state["module_index"], 5),
+            "can_extend": state.get("deadline_extensions", 0) < MAX_EXTENSIONS,
+        }
+
+    # Check if submitted within first 12 hours → "time is money" badge
+    dl = state.get("module_deadline")
+    if dl:
+        try:
+            deadline_dt = datetime.fromisoformat(dl)
+            hours_used = DEFAULT_DEADLINE_HOURS - (deadline_dt - datetime.utcnow()).total_seconds() / 3600
+            if hours_used <= 12:
+                award_badge(req.user_id, "time_is_money")
+        except Exception:
+            pass
+
     state["active_quest"] = req.quest_id
     state["homework_status"] = "pending"
     save_progress()
-    return {"ok": True, "message": "Задание принято на проверку. Ждите одобрения администратора."}
+    return {
+        "ok": True,
+        "message": "Задание принято на проверку. AI-ментор проверит в течение 24 часов.",
+    }
 
 
-# ── LEADERBOARD & STATS ──
+# ── DEADLINE PENALTY PAYMENT ──────────────────────────────────────────────────
+
+@app.post("/api/deadline/penalty")
+async def pay_deadline_penalty(req: PenaltyPaymentRequest):
+    """
+    Process deadline penalty payment.
+    In production: integrate with payment gateway before calling this.
+    payment_type: 'penalty' = first miss, 48h extension
+                  'repurchase' = second miss, full module repurchase
+    """
+    state = get_user_state(req.user_id)
+
+    if req.payment_type == "penalty":
+        if state.get("deadline_extensions", 0) >= MAX_EXTENSIONS:
+            return {
+                "ok": False,
+                "error": "max_extensions_reached",
+                "message": "Лимит продлений исчерпан. Требуется полная перепокупка модуля.",
+                "repurchase_amount": MODULE_FULL_REPURCHASE.get(req.module_index, 15),
+            }
+
+        success = apply_penalty_extension(state)
+        if success:
+            save_progress()
+            new_dl = state.get("module_deadline")
+            dl_info = build_deadline_info(state)
+            return {
+                "ok": True,
+                "message": "Штраф оплачен. У тебя есть 48 часов. Рынок не прощает промедления.",
+                "new_deadline_iso": new_dl,
+                "deadline_info": dl_info,
+                "extensions_remaining": MAX_EXTENSIONS - state.get("deadline_extensions", 0),
+            }
+        return {"ok": False, "error": "extension_failed"}
+
+    elif req.payment_type == "repurchase":
+        # Full repurchase: reset module progress, set fresh 72h deadline
+        module_idx = state["module_index"]
+        # Remove all quests for this module from completed
+        module_quest_ids = {q["id"] for q in QUESTS if q["module_index"] == module_idx}
+        state["completed_quests"] = [
+            qid for qid in state["completed_quests"] if qid not in module_quest_ids
+        ]
+        state["homework_status"] = "idle"
+        state["active_quest"] = None
+        state["deadline_extensions"] = 0
+        set_module_deadline(state, hours=DEFAULT_DEADLINE_HOURS)
+        save_progress()
+        return {
+            "ok": True,
+            "message": "Модуль перекуплен. Новый дедлайн: 72 часа. Не повторяй ошибку.",
+            "deadline_info": build_deadline_info(state),
+        }
+
+    raise HTTPException(status_code=400, detail="Неизвестный тип оплаты")
+
+
+@app.get("/api/deadline/status/{user_id}")
+async def get_deadline_status(user_id: int):
+    state = get_user_state(user_id)
+    info = build_deadline_info(state)
+    info["module_index"] = state["module_index"]
+    info["penalty_amount"] = MODULE_PENALTIES.get(state["module_index"], 5)
+    info["repurchase_amount"] = MODULE_FULL_REPURCHASE.get(state["module_index"], 15)
+    return info
+
+
+# ── DAILY BONUS ───────────────────────────────────────────────────────────────
+
+@app.post("/api/user/daily-bonus")
+async def daily_bonus_endpoint(user_id: int):
+    xp, got_bonus = claim_daily_bonus(user_id)
+    streak, _ = update_streak(user_id)
+    if got_bonus:
+        return {"ok": True, "xp_earned": xp, "streak": streak}
+    return {"ok": False, "message": "Бонус уже получен сегодня", "streak": streak}
+
+
+# ── LEADERBOARD & STATS ──────────────────────────────────────────────────────
 
 @app.get("/api/leaderboard")
 async def leaderboard(limit: int = Query(default=10, ge=1, le=50)):
@@ -345,10 +529,10 @@ async def user_stats(user_id: int):
     state = get_user_state(user_id)
     idx = state["module_index"]
     module_title = MODULES[idx]["title"] if idx < len(MODULES) else "Завершено"
-    dl = state.get("module_deadline")
-    dl_text = dl.split("T")[0] if dl else "не установлен"
+    dl_info = build_deadline_info(state)
     all_module_quests = [q for q in QUESTS if q["module_index"] == idx]
     completed_module = sum(1 for q in all_module_quests if q["id"] in state["completed_quests"])
+
     return {
         "name": state.get("name", str(user_id)),
         "level": state["level"], "xp": state["xp"], "rank": state["rank"],
@@ -356,12 +540,14 @@ async def user_stats(user_id: int):
         "total_quests_completed": len(state["completed_quests"]),
         "module_quests_completed": completed_module,
         "module_quests_total": len(all_module_quests),
-        "deadline": dl_text, "deadline_extensions": state.get("deadline_extensions", 0),
-        "max_extensions": MAX_EXTENSIONS, "is_expired": is_deadline_expired(state),
+        "streak": state.get("streak", 0),
+        "badges": state.get("badges", []),
+        "deadline_info": dl_info,
+        "is_expired": dl_info["deadline_expired"],
     }
 
 
-# ── ADMIN ──
+# ── ADMIN ─────────────────────────────────────────────────────────────────────
 
 @app.post("/api/admin/approve")
 async def admin_approve(req: AdminApproveRequest):
@@ -375,9 +561,21 @@ async def admin_approve(req: AdminApproveRequest):
     state["active_quest"] = None
     state["homework_status"] = "approved"
     level, leveled_up = add_xp(req.user_id, quest["xp_reward"])
+
+    # Award "disciplined" badge if homework submitted on time
+    if not is_deadline_expired(state) and state.get("module_deadline"):
+        award_badge(req.user_id, "disciplined")
+
     advanced = False
     if req.quest_id.endswith("_boss"):
         advanced = try_advance_module(req.user_id)
+
+    # Check if all modules completed → CHM Legend badge
+    if state["module_index"] >= len(MODULES) - 1:
+        all_done = all(q["id"] in state["completed_quests"] for q in QUESTS)
+        if all_done:
+            award_badge(req.user_id, "chm_legend")
+
     save_progress()
     return {"ok": True, "new_level": level, "leveled_up": leveled_up, "module_advanced": advanced}
 
@@ -395,8 +593,6 @@ async def admin_reject(req: AdminRejectRequest):
 async def admin_extend(req: ExtendRequest):
     check_admin(req.admin_id)
     state = get_user_state(req.user_id)
-    if state.get("deadline_extensions", 0) >= MAX_EXTENSIONS:
-        return {"ok": False, "error": "Лимит продлений исчерпан"}
     now = datetime.utcnow()
     dl = state.get("module_deadline")
     try:
@@ -405,7 +601,7 @@ async def admin_extend(req: ExtendRequest):
         base = now
     new_dl = base + timedelta(days=req.days)
     state["module_deadline"] = new_dl.isoformat()
-    state["deadline_extensions"] = state.get("deadline_extensions", 0) + 1
+    # Admin extension doesn't count against MAX_EXTENSIONS
     save_progress()
     return {"ok": True, "new_deadline": new_dl.date().isoformat()}
 
@@ -418,9 +614,14 @@ async def admin_users(admin_id: int):
             "user_id": uid,
             "name": st.get("name", str(uid)),
             "level": st.get("level", 1), "xp": st.get("xp", 0),
+            "rank": st.get("rank", "Наблюдатель рынка"),
             "module_index": st.get("module_index", 0),
             "homework_status": st.get("homework_status", "idle"),
             "active_quest": st.get("active_quest"),
+            "streak": st.get("streak", 0),
+            "badges": st.get("badges", []),
+            "is_expired": is_deadline_expired(st),
+            "hours_remaining": round(get_deadline_hours_remaining(st), 1),
         }
         for uid, st in user_progress.items()
     ]
@@ -442,8 +643,8 @@ async def webhook(request: Request):
 @app.on_event("startup")
 async def on_startup():
     load_progress()
-    logger.info(f"Прогресс загружен: {len(user_progress)} пользователей")
+    logger.info(f"Progress loaded: {len(user_progress)} users")
     if os.getenv("WEBHOOK_URL"):
         setup_webhook()
     else:
-        logger.info("WEBHOOK_URL не задан — вебхук не установлен (polling режим)")
+        logger.info("WEBHOOK_URL not set — webhook not configured (polling mode)")

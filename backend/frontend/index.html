@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>SMC Quest</title>
+  <title>CHM Smart Money Academy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@500;700;800;900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
@@ -15,6 +15,57 @@
   <!-- ANIMATED BACKGROUND CANVAS -->
   <canvas id="bgCanvas"></canvas>
   <div class="bg-overlay"></div>
+
+  <!-- ══ DEADLINE EXPIRED OVERLAY ══════════════════════════════════════════ -->
+  <div id="deadlineExpiredOverlay" class="deadline-expired-overlay hidden">
+    <div class="ded-content">
+      <div class="ded-glow"></div>
+      <div class="ded-icon-wrap">
+        <div class="ded-red-circle">
+          <svg viewBox="0 0 60 60" width="60" height="60" fill="none">
+            <circle cx="30" cy="30" r="28" stroke="#ff4d6d" stroke-width="2.5" opacity="0.8"/>
+            <path d="M30 10V32" stroke="#ff4d6d" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="30" cy="42" r="3" fill="#ff4d6d"/>
+          </svg>
+        </div>
+      </div>
+      <div class="ded-label">ВРЕМЯ ВЫШЛО</div>
+      <div class="ded-title">Рынок закрылся</div>
+      <div class="ded-subtitle">Ты не успел. Модуль заблокирован.</div>
+      <div class="ded-quote">
+        «Именно так рынок закрывает позиции у тех, кто медлит.»
+      </div>
+
+      <div class="ded-options">
+        <!-- Primary: Penalty payment -->
+        <div class="ded-option ded-option--primary" id="penaltyOption">
+          <div class="ded-option-icon">⚡</div>
+          <div class="ded-option-body">
+            <div class="ded-option-title">Оплатить штраф</div>
+            <div class="ded-option-desc">«Биржевая комиссия за промедление»</div>
+            <div class="ded-option-price" id="penaltyAmountText">$5</div>
+            <div class="ded-option-detail">48 часов дополнительного времени</div>
+          </div>
+          <button id="payPenaltyBtn" class="btn-penalty">Оплатить и продолжить →</button>
+        </div>
+
+        <!-- Secondary: Full repurchase (shown after 1 extension) -->
+        <div class="ded-option ded-option--secondary hidden" id="repurchaseOption">
+          <div class="ded-option-icon">🔄</div>
+          <div class="ded-option-body">
+            <div class="ded-option-title">Перекупить модуль</div>
+            <div class="ded-option-desc">Полный сброс и новый дедлайн</div>
+            <div class="ded-option-price" id="repurchaseAmountText">$15</div>
+          </div>
+          <button id="repurchaseBtn" class="btn-repurchase">Перекупить доступ →</button>
+        </div>
+      </div>
+
+      <div class="ded-rhetoric">
+        Каждый час промедления — потерянный сетап на реальном рынке.
+      </div>
+    </div>
+  </div>
 
   <!-- ══ ONBOARDING OVERLAY ══════════════════════════════════════════════ -->
   <div id="onboardingOverlay" class="onboarding-overlay hidden">
@@ -41,7 +92,6 @@
                 </linearGradient>
               </defs>
               <circle cx="100" cy="100" r="80" fill="url(#glow1)"/>
-              <!-- Candlesticks illustration -->
               <line x1="55" y1="40" x2="55" y2="160" stroke="#00e87a" stroke-width="1.5" opacity="0.6"/>
               <rect x="47" y="65" width="16" height="70" rx="2" fill="url(#candleUp)"/>
               <line x1="95" y1="50" x2="95" y2="155" stroke="#ff4d6d" stroke-width="1.5" opacity="0.6"/>
@@ -50,15 +100,12 @@
               <rect x="127" y="55" width="16" height="65" rx="2" fill="url(#candleUp)"/>
               <line x1="158" y1="45" x2="158" y2="130" stroke="#00e87a" stroke-width="1.5" opacity="0.6"/>
               <rect x="150" y="60" width="16" height="50" rx="2" fill="url(#candleUp)"/>
-              <!-- Trend line -->
               <path d="M47 120 Q100 80 170 55" stroke="#00d4ff" stroke-width="2" stroke-dasharray="4 4" opacity="0.8" fill="none"/>
-              <!-- Star -->
               <circle cx="170" cy="55" r="6" fill="#00d4ff" opacity="0.9"/>
-              <path d="M170 49L171.5 53H176L172.5 55.5L174 60L170 57L166 60L167.5 55.5L164 53H168.5Z" fill="white"/>
             </svg>
           </div>
-          <h1 class="ob-title">Добро пожаловать в<br/><span class="ob-brand">SMC Quest</span></h1>
-          <p class="ob-desc">Освой Smart Money Concepts через интерактивные уроки, квизы и реальные задания</p>
+          <h1 class="ob-title">Добро пожаловать в<br/><span class="ob-brand">CHM Smart Money</span></h1>
+          <p class="ob-desc">Освой Smart Money Concepts через интерактивные уроки, квизы и реальные задания на графике</p>
         </div>
 
         <!-- Slide 2 -->
@@ -67,28 +114,22 @@
             <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <radialGradient id="glow2" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.3"/>
-                  <stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/>
+                  <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
                 </radialGradient>
               </defs>
               <circle cx="100" cy="100" r="80" fill="url(#glow2)"/>
-              <!-- Book icon -->
-              <rect x="55" y="60" width="90" height="90" rx="8" fill="#1a1f2e" stroke="#a78bfa" stroke-width="2"/>
-              <rect x="55" y="60" width="45" height="90" rx="8" fill="#252d45" stroke="#a78bfa" stroke-width="1.5"/>
-              <line x1="68" y1="85" x2="92" y2="85" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
-              <line x1="68" y1="97" x2="92" y2="97" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-              <line x1="68" y1="109" x2="85" y2="109" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
-              <line x1="109" y1="82" x2="133" y2="82" stroke="#00d4ff" stroke-width="2" stroke-linecap="round"/>
-              <line x1="109" y1="94" x2="133" y2="94" stroke="#00d4ff" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
-              <line x1="109" y1="106" x2="126" y2="106" stroke="#00d4ff" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
-              <!-- XP badge -->
-              <circle cx="145" cy="65" r="18" fill="#f59e0b" opacity="0.2"/>
-              <circle cx="145" cy="65" r="14" fill="#f59e0b" opacity="0.15"/>
-              <text x="145" y="70" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="800" font-family="Syne">XP</text>
+              <!-- Timer -->
+              <circle cx="100" cy="95" r="42" fill="#1a1f2e" stroke="#ff4d6d" stroke-width="2.5"/>
+              <path d="M100 60 L100 95 L124 95" stroke="#ff4d6d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="100" cy="95" r="4" fill="#ff4d6d"/>
+              <!-- Labels -->
+              <text x="100" y="152" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="700" font-family="JetBrains Mono">72:00:00</text>
+              <text x="100" y="166" text-anchor="middle" fill="#8892a4" font-size="8" font-family="Space Grotesk">ДЕДЛАЙН МОДУЛЯ</text>
             </svg>
           </div>
-          <h1 class="ob-title">Учись и<br/><span class="ob-brand ob-brand--gold">зарабатывай XP</span></h1>
-          <p class="ob-desc">Читай уроки, проходи квизы и выполняй задания чтобы подниматься в рейтинге</p>
+          <h1 class="ob-title">72 часа на<br/><span class="ob-brand ob-brand--red">каждый модуль</span></h1>
+          <p class="ob-desc">Рынок не ждал никого. Дедлайн — симуляция реального рынка. Не успел — платишь штраф.</p>
         </div>
 
         <!-- Slide 3 -->
@@ -108,16 +149,13 @@
               <path d="M125 70H145C145 70 150 100 125 100" stroke="#fbbf24" stroke-width="2" fill="none" stroke-linecap="round"/>
               <rect x="88" y="140" width="24" height="10" rx="2" fill="#fbbf24" opacity="0.8"/>
               <rect x="80" y="150" width="40" height="8" rx="4" fill="#fbbf24"/>
-              <!-- Star in trophy -->
               <path d="M100 80L103 89H113L105.5 94.5L108.5 103.5L100 98L91.5 103.5L94.5 94.5L87 89H97Z" fill="#fbbf24" opacity="0.9"/>
-              <!-- Rays -->
-              <line x1="100" y1="35" x2="100" y2="48" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-              <line x1="138" y1="47" x2="129" y2="56" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-              <line x1="62" y1="47" x2="71" y2="56" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+              <!-- Level labels -->
+              <text x="100" y="175" text-anchor="middle" fill="#fbbf24" font-size="8" font-family="Space Grotesk">7 уровней · CHM Certificate</text>
             </svg>
           </div>
-          <h1 class="ob-title">Стань лучшим<br/><span class="ob-brand ob-brand--green">трейдером</span></h1>
-          <p class="ob-desc">Соревнуйся с другими, поднимайся по рангам от Камня до Бриллианта</p>
+          <h1 class="ob-title">Стань<br/><span class="ob-brand ob-brand--gold">Архитектором рынка</span></h1>
+          <p class="ob-desc">7 уровней трейдера: от Наблюдателя до Архитектора рынка. CHM Certificate ждёт тебя.</p>
         </div>
       </div>
 
@@ -143,9 +181,10 @@
         <div id="levelupRankIcon" class="levelup-rank-svg"></div>
       </div>
       <div class="levelup-label">УРОВЕНЬ ПОВЫШЕН</div>
-      <div class="levelup-level" id="levelupNum">12</div>
-      <div class="levelup-rank-name" id="levelupRankName">Серебро</div>
-      <button class="levelup-btn" id="levelupCloseBtn">🔥 Продолжить</button>
+      <div class="levelup-level" id="levelupNum">2</div>
+      <div class="levelup-rank-name" id="levelupRankName">Охотник за ликвидностью</div>
+      <div class="levelup-quote" id="levelupQuote"></div>
+      <button class="levelup-btn" id="levelupCloseBtn">🔥 Продолжить охоту</button>
     </div>
   </div>
 
@@ -160,10 +199,14 @@
     <!-- HEADER -->
     <header class="header">
       <div class="header-left">
-        <div class="rank-icon-wrap" id="rankIconWrap">
-          <!-- SVG rank icon injected by JS -->
+        <div class="rank-icon-wrap" id="rankIconWrap"></div>
+        <div class="header-user-info">
+          <span id="userName" class="header-username">CHM Academy</span>
+          <div class="streak-badge hidden" id="streakBadge">
+            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 0C5 0 7 3 7 5C7 6.7 6.1 7.5 5 7.5C3.9 7.5 3 6.7 3 5C3 3 5 0 5 0Z" fill="#f97316"/></svg>
+            <span id="streakCount">0</span>
+          </div>
         </div>
-        <span id="userName" class="header-username">SMC Quest</span>
       </div>
       <div class="header-right">
         <div class="xp-badge">
@@ -174,12 +217,25 @@
       </div>
     </header>
 
-    <!-- PROGRESS -->
+    <!-- PROGRESS SECTION -->
     <div class="progress-section">
       <div class="progress-info">
         <span id="moduleName">Загрузка...</span>
-        <span id="deadlineText" class="deadline-text"></span>
+        <span id="moduleSubtitle" class="module-subtitle"></span>
       </div>
+
+      <!-- DEADLINE COUNTDOWN -->
+      <div id="deadlineCountdown" class="deadline-countdown hidden">
+        <div class="dc-left">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M7 3.5V7L9.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span class="dc-label">Дедлайн:</span>
+        </div>
+        <div id="countdownTimer" class="dc-timer">00:00:00</div>
+      </div>
+
       <div class="progress-bar-wrap">
         <div class="progress-bar" id="progressBar">
           <div class="progress-shine"></div>
@@ -283,7 +339,7 @@
       </button>
       <div class="quiz-header">
         <div class="quiz-streak" id="quizStreak">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="#f59e0b"><path d="M7 1C7 1 9 4 9 6.5C9 8.5 8 9.5 7 9.5C6 9.5 5 8.5 5 6.5C5 4 7 1 7 1Z"/><path d="M4 8C4 8 2 9.5 2 11C2 12.1 2.9 13 4 13C5.1 13 6 12.1 6 11H8C8 12.1 8.9 13 10 13C11.1 13 12 12.1 12 11C12 9.5 10 8 10 8"/></svg>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="#f59e0b"><path d="M7 1C7 1 9 4 9 6.5C9 8.5 8 9.5 7 9.5C6 9.5 5 8.5 5 6.5C5 4 7 1 7 1Z"/></svg>
           <span id="quizStreakNum">0</span>
         </div>
         <div id="quizProgress" class="quiz-progress-bar-wrap">
@@ -331,11 +387,11 @@
         </div>
         <div class="task-step">
           <span class="step-num">2</span>
-          <span>Сделай скриншот или заметки для отправки</span>
+          <span>Сделай скриншот графика с разметкой</span>
         </div>
         <div class="task-step">
           <span class="step-num">3</span>
-          <span>Нажми кнопку ниже — ответ отправится на проверку</span>
+          <span>Нажми кнопку — AI-ментор проверит в течение 24 часов</span>
         </div>
       </div>
       <div id="taskStatus" class="task-status hidden"></div>
@@ -356,6 +412,20 @@
       <div id="resultXp" class="result-xp hidden"></div>
       <button class="btn-primary" onclick="onResultClose()">
         Отлично, продолжаем!
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ DAILY BONUS MODAL ═══════════════════════════════════════════════ -->
+  <div id="dailyBonusModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('dailyBonusModal')"></div>
+    <div class="modal-content result-content">
+      <div class="result-emoji">🔥</div>
+      <h2 class="result-title">Ежедневный вход!</h2>
+      <p class="result-text" id="dailyBonusText">+20 XP начислено</p>
+      <div id="dailyStreakDisplay" class="streak-display"></div>
+      <button class="btn-primary" onclick="closeModal('dailyBonusModal')">
+        Торговать!
       </button>
     </div>
   </div>
