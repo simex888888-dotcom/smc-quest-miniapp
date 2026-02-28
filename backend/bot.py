@@ -259,27 +259,44 @@ def cmd_approve(message: types.Message):
 
 @bot.message_handler(commands=["reject"])
 def cmd_reject(message: types.Message):
+    """Usage: /reject user_id quest_id [комментарий]  → rejected
+              /revision user_id quest_id [комментарий] → revision (needs resubmit)"""
     if message.from_user.id != ADMIN_ID:
         return
     from progress import get_user_state, save_progress
+    cmd = message.text.split()[0].lstrip("/")   # "reject" or "revision"
     args = message.text.split(None, 3)[1:]
     if len(args) < 2:
-        bot.reply_to(message, "Использование: /reject user_id quest_id [комментарий]"); return
+        bot.reply_to(message, f"Использование: /{cmd} user_id quest_id [комментарий]"); return
     uid, quest_id = int(args[0]), args[1]
     comment = args[2] if len(args) > 2 else "Нужно доработать."
+    status = "revision" if cmd == "revision" else "rejected"
     state = get_user_state(uid)
-    state["homework_status"] = "rejected"
+    state["homework_status"] = status
     save_progress()
-    bot.reply_to(message, "Задание отклонено.")
-    try:
-        bot.send_message(
-            uid,
-            f"🔄 *Задание на доработке*\n\n"
-            f"Конкретный фидбек:\n_{comment}_\n\n"
-            "Исправь и отправь снова. Без доработки следующий модуль не откроется.",
+    bot.reply_to(message, f"{'🔄 На доработке' if status == 'revision' else '⛔ Отклонено'}.")
+    if status == "revision":
+        msg = (
+            f"🔄 *Нужна доработка домашки*\n\n"
+            f"Фидбек:\n_{comment}_\n\n"
+            "Исправь разметку и отправь скрин снова. Модуль откроется после принятия."
         )
+    else:
+        msg = (
+            f"⛔ *Домашка не принята*\n\n"
+            f"Причина:\n_{comment}_\n\n"
+            "Серьёзные ошибки в структуре. Пересмотри уроки и сделай разметку заново."
+        )
+    try:
+        bot.send_message(uid, msg, parse_mode="Markdown")
     except Exception:
         pass
+
+
+@bot.message_handler(commands=["revision"])
+def cmd_revision(message: types.Message):
+    """Alias: /revision → calls cmd_reject with revision status."""
+    cmd_reject(message)
 
 
 def setup_webhook():
