@@ -696,7 +696,6 @@ function renderQuests(resp) {
 
     const desc = el("div", "quest-desc", q.description || "");
 
-    const hw = state.userState?.homework_status;
     const canResubmit = q.is_active && q.type === "task" && (hw === "revision" || hw === "rejected");
     const btnLabel = q.completed
       ? "✓ Выполнено"
