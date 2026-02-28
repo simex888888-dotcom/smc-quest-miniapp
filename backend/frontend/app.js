@@ -720,13 +720,47 @@ function renderQuests(resp) {
 function renderLeaderboard(resp) {
   const list      = resp.leaderboard || [];
   const container = $("#leaderboardList");
+  const podium    = $("#leaderboardPodium");
   container.innerHTML = "";
+  if (podium) podium.innerHTML = "";
 
   if (!list.length) {
     container.innerHTML = `<div class="empty-state"><span class="es-icon">🏆</span><div class="es-title">Пока никого нет</div><p>Стань первым!</p></div>`;
     return;
   }
 
+  // ── Podium for top-3 ──
+  if (podium && list.length >= 1) {
+    // order: 2nd (left) | 1st (center) | 3rd (right)
+    const podiumOrder = [1, 0, 2]; // indices into list
+    const barHeights  = [64, 48, 40]; // index 0=1st place, 1=2nd, 2=3rd
+    const crowns      = ["👑", "", ""];
+    const medals      = ["🥇", "🥈", "🥉"];
+
+    podiumOrder.forEach((listIdx) => {
+      const row = list[listIdx];
+      if (!row) return;
+      const place = listIdx + 1; // 1, 2, or 3
+      const nameShort = (row.name || `User ${row.user_id}`).split(" ")[0].slice(0, 10);
+      const initials  = nameShort.slice(0, 2).toUpperCase();
+
+      const div = document.createElement("div");
+      div.className = "podium-place";
+
+      div.innerHTML = `
+        <div class="podium-avatar">
+          ${listIdx === 0 ? `<span class="podium-crown">👑</span>` : ""}
+          ${initials}
+        </div>
+        <div class="podium-name">${nameShort}</div>
+        <div class="podium-xp">${row.xp} XP</div>
+        <div class="podium-bar">${medals[listIdx]}</div>
+      `;
+      podium.appendChild(div);
+    });
+  }
+
+  // ── Full list (all entries, starting from rank 1) ──
   list.forEach((row, i) => {
     const item = el("div", "lb-item");
     const rank = el("div", "lb-rank", i < 3 ? ["🥇","🥈","🥉"][i] : `${i+1}`);
@@ -734,16 +768,12 @@ function renderLeaderboard(resp) {
     const name = el("div", "lb-name", row.name || `User ${row.user_id}`);
     const sub  = el("div", "lb-sub", `${row.rank || "Наблюдатель рынка"} · Модуль ${row.module || 1}`);
     const xp   = el("div", "lb-xp", `${row.xp} XP`);
-    // Streak indicator
-    if (row.streak >= 3) {
-      const streakEl = el("div", "lb-streak", `🔥${row.streak}`);
-      xp.appendChild(streakEl);
-    }
+    if (row.streak >= 3) xp.appendChild(el("span", "lb-streak", `🔥${row.streak}`));
     info.append(name, sub);
     item.append(rank, info, xp);
     if (row.user_id === state.userId) {
-      item.style.borderColor = "rgba(0,212,255,0.25)";
-      item.style.background  = "rgba(0,212,255,0.04)";
+      item.style.borderColor = "rgba(201,168,76,0.30)";
+      item.style.background  = "rgba(201,168,76,0.05)";
     }
     container.appendChild(item);
   });
@@ -926,17 +956,103 @@ function onQuizFinished(data) {
   }
 }
 
+// ── PHOTO UPLOAD ───────────────────────────────────────────────────────────
+let _hwPhotoBase64 = null;
+
+function onPhotoSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) { showToast("Файл слишком большой (макс 8MB)", "error"); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _hwPhotoBase64 = e.target.result; // data:image/...;base64,...
+    const wrap = $("#photoPreviewWrap");
+    const img  = $("#photoPreviewImg");
+    img.src = _hwPhotoBase64;
+    wrap?.classList.remove("hidden");
+    $("#photoDropArea")?.classList.add("hidden");
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  _hwPhotoBase64 = null;
+  const wrap = $("#photoPreviewWrap");
+  wrap?.classList.add("hidden");
+  $("#photoDropArea")?.classList.remove("hidden");
+  const input = $("#hwPhotoInput");
+  if (input) input.value = "";
+}
+
+window.onPhotoSelected = onPhotoSelected;
+window.removePhoto = removePhoto;
+
 // ── TASK ──────────────────────────────────────────────────────────────────
 function openTask(questId, title, xpReward, description) {
   state.currentQuestId = questId;
+  _hwPhotoBase64 = null;
+
   $("#taskTitle").textContent = title;
   $("#taskXp").textContent    = `+${xpReward} XP`;
   $("#taskDesc").textContent  = description || "";
+
+  // Reset status
   const statusEl = $("#taskStatus");
   statusEl.className = "task-status hidden";
+
+  // Reset submit button
   const submitBtn = $("#taskSubmitBtn");
   submitBtn.disabled = false;
   submitBtn.textContent = "Отправить на проверку";
+  submitBtn.classList.remove("hidden");
+
+  // Reset photo upload
+  removePhoto();
+  const hwInput = $("#hwPhotoInput");
+  if (hwInput) hwInput.value = "";
+
+  // Reset checkboxes
+  ["check1","check2","check3","check4"].forEach(id => {
+    const cb = $(`#${id}`);
+    if (cb) cb.checked = false;
+  });
+
+  // Show/hide teacher comment based on current homework status
+  const hw = state.userState?.homework_status;
+  const commentBlock = $("#teacherCommentBlock");
+  const commentText  = $("#teacherCommentText");
+  const hwComment    = state.userState?.homework_comment || "";
+
+  if (commentBlock) {
+    if ((hw === "revision" || hw === "rejected") && hwComment) {
+      commentText.textContent = hwComment;
+      commentBlock.classList.remove("hidden");
+    } else {
+      commentBlock.classList.add("hidden");
+    }
+  }
+
+  // Show/hide upload section based on status
+  const uploadSection = $("#taskPhotoUpload");
+  const selfCheck     = $("#taskSelfCheck");
+  if (hw === "pending") {
+    // Already submitted, waiting
+    if (uploadSection) uploadSection.classList.add("hidden");
+    if (selfCheck)     selfCheck.classList.add("hidden");
+    statusEl.className = "task-status pending";
+    statusEl.textContent = "⏳ Ожидает проверки преподавателем";
+    submitBtn.classList.add("hidden");
+  } else if (hw === "approved") {
+    if (uploadSection) uploadSection.classList.add("hidden");
+    if (selfCheck)     selfCheck.classList.add("hidden");
+    statusEl.className = "task-status approved";
+    statusEl.textContent = "✅ Задание принято!";
+    submitBtn.classList.add("hidden");
+  } else {
+    if (uploadSection) uploadSection.classList.remove("hidden");
+    if (selfCheck)     selfCheck.classList.remove("hidden");
+  }
+
   openModal("#taskModal");
 }
 
@@ -947,10 +1063,16 @@ async function submitCurrentTask() {
   btn.textContent = "⏳ Отправляю...";
 
   try {
+    const body = {
+      user_id:  state.userId,
+      quest_id: state.currentQuestId,
+    };
+    if (_hwPhotoBase64) body.photo = _hwPhotoBase64;
+
     const res = await fetch(`${API}/quest/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: state.userId, quest_id: state.currentQuestId }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
 
@@ -959,7 +1081,11 @@ async function submitCurrentTask() {
       statusEl.className = "task-status pending";
       statusEl.textContent = "⏳ Задание отправлено! Преподаватель проверит в течение 24 часов.";
       btn.textContent = "✓ Отправлено";
+      // Hide upload UI after submit
+      $("#taskPhotoUpload")?.classList.add("hidden");
+      $("#taskSelfCheck")?.classList.add("hidden");
       showToast("Задание отправлено на проверку!", "success");
+      if (state.userState) state.userState.homework_status = "pending";
       loadQuests();
     } else if (data.error === "deadline_expired") {
       closeModal("#taskModal");

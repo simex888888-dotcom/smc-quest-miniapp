@@ -294,6 +294,7 @@
 
     <!-- LEADERBOARD TAB -->
     <div id="tab-leaderboard" class="tab-content">
+      <div id="leaderboardPodium" class="lb-podium"></div>
       <div id="leaderboardList"></div>
     </div>
 
@@ -391,9 +392,57 @@
         </div>
         <div class="task-step">
           <span class="step-num">3</span>
-          <span>Нажми кнопку — AI-ментор проверит в течение 24 часов</span>
+          <span>Загрузи скриншот и пройди самопроверку</span>
+        </div>
+        <div class="task-step">
+          <span class="step-num">4</span>
+          <span>Преподаватель проверит в течение 24 часов</span>
         </div>
       </div>
+
+      <!-- Self-check checklist -->
+      <div class="self-check" id="taskSelfCheck">
+        <div class="self-check-title">✅ Самопроверка перед отправкой</div>
+        <label class="self-check-item">
+          <input type="checkbox" id="check1"/>
+          <label for="check1">Я чётко вижу структуру на графике (BOS/CHoCH)</label>
+        </label>
+        <label class="self-check-item">
+          <input type="checkbox" id="check2"/>
+          <label for="check2">Ордер-блок обозначен корректно</label>
+        </label>
+        <label class="self-check-item">
+          <input type="checkbox" id="check3"/>
+          <label for="check3">Зона ликвидности видна и отмечена</label>
+        </label>
+        <label class="self-check-item">
+          <input type="checkbox" id="check4"/>
+          <label for="check4">Таймфрейм и инструмент указаны на скриншоте</label>
+        </label>
+      </div>
+
+      <!-- Photo upload -->
+      <div id="taskPhotoUpload">
+        <div class="photo-upload-area" id="photoDropArea" onclick="$('#hwPhotoInput').click()">
+          <input type="file" id="hwPhotoInput" accept="image/*" onchange="onPhotoSelected(this)"/>
+          <span class="photo-upload-icon">📷</span>
+          <div class="photo-upload-label">
+            <strong>Загрузить скриншот графика</strong><br/>
+            Нажми чтобы выбрать из галереи
+          </div>
+        </div>
+        <div class="photo-preview-wrap hidden" id="photoPreviewWrap">
+          <img id="photoPreviewImg" src="" alt="Preview"/>
+          <button class="photo-preview-remove" onclick="removePhoto()" title="Удалить фото">✕</button>
+        </div>
+      </div>
+
+      <!-- Teacher comment (shown after rejection/revision) -->
+      <div class="teacher-comment hidden" id="teacherCommentBlock">
+        <div class="teacher-comment-label">💬 Комментарий преподавателя</div>
+        <div id="teacherCommentText"></div>
+      </div>
+
       <div id="taskStatus" class="task-status hidden"></div>
       <button id="taskSubmitBtn" class="btn-primary" onclick="submitCurrentTask()">
         Отправить на проверку

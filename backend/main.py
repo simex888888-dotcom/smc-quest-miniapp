@@ -67,6 +67,7 @@ class UserInitRequest(BaseModel):
 class QuestSubmitRequest(BaseModel):
     user_id: int
     quest_id: str
+    photo: Optional[str] = None   # base64 data URL of homework screenshot
 
 
 class QuizAnswerRequest(BaseModel):
@@ -203,17 +204,22 @@ async def user_init(req: UserInitRequest):
     }
 
 
+def _state_safe(state: dict) -> dict:
+    """Return state without large binary fields."""
+    return {k: v for k, v in state.items() if k != "homework_photo"}
+
+
 @app.get("/api/user/{user_id}")
 async def get_user(user_id: int):
     state = get_user_state(user_id)
-    return state
+    return _state_safe(state)
 
 
 @app.get("/api/user/{user_id}/full")
 async def get_user_full(user_id: int):
     """Full user state with computed deadline info."""
     state = get_user_state(user_id)
-    result = dict(state)
+    result = _state_safe(state)
     result["deadline_info"] = build_deadline_info(state)
     result["next_level_xp"] = None
     current_xp = state.get("xp", 0)
@@ -432,6 +438,10 @@ async def submit_task(req: QuestSubmitRequest):
 
     state["active_quest"] = req.quest_id
     state["homework_status"] = "pending"
+    state["homework_comment"] = ""
+    if req.photo:
+        # Store only the first 500KB worth of base64 to prevent bloat
+        state["homework_photo"] = req.photo[:700_000]
     save_progress()
     return {
         "ok": True,
@@ -587,6 +597,7 @@ async def admin_reject(req: AdminRejectRequest):
     state = get_user_state(req.user_id)
     # "revision" = needs correction + resubmit; "rejected" = serious errors
     state["homework_status"] = req.status if req.status in ("rejected", "revision") else "rejected"
+    state["homework_comment"] = req.comment or ""
     save_progress()
     return {"ok": True, "comment": req.comment, "status": state["homework_status"]}
 
@@ -619,6 +630,8 @@ async def admin_users(admin_id: int):
             "rank": st.get("rank", "Наблюдатель рынка"),
             "module_index": st.get("module_index", 0),
             "homework_status": st.get("homework_status", "idle"),
+            "homework_comment": st.get("homework_comment", ""),
+            "has_photo": bool(st.get("homework_photo")),
             "active_quest": st.get("active_quest"),
             "streak": st.get("streak", 0),
             "badges": st.get("badges", []),
@@ -628,6 +641,17 @@ async def admin_users(admin_id: int):
         for uid, st in user_progress.items()
     ]
     return {"users": result}
+
+
+@app.get("/api/admin/homework_photo/{user_id}")
+async def get_homework_photo(user_id: int, admin_id: int):
+    """Return the homework photo submitted by a user (admin only)."""
+    check_admin(admin_id)
+    st = get_user_state(user_id)
+    photo = st.get("homework_photo")
+    if not photo:
+        raise HTTPException(status_code=404, detail="Фото не найдено")
+    return {"photo": photo}
 
 
 # ── WEBHOOK ───────────────────────────────────────────────────────────────────
