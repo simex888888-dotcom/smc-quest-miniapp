@@ -27,7 +27,7 @@ MODULES: List[Dict[str, Any]] = [
         "lessons": ["fvg"],
     },
     {
-        "title": "Индусмент и манипуляция",
+        "title": "Inducement и манипуляция",
         "subtitle": "Стоп-хантинг, фейкауты, ловушки",
         "is_free": False,
         "lessons": ["inducement", "stop_hunting"],
@@ -213,7 +213,7 @@ LESSONS: Dict[str, Dict[str, Any]] = {
         "video": "https://www.youtube.com/watch?v=mqBR-DRQT_o&t=1100s",
     },
 
-    # ── MODULE 5: Индусмент и манипуляция ────────────────────────────────
+    # ── MODULE 5: Inducement и манипуляция ───────────────────────────────
     "inducement": {
         "title": "🪤 Inducement (Ловушка)",
         "text": "Inducement — видимый уровень, который создаётся специально для сбора стопов толпы.",

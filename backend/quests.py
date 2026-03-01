@@ -130,7 +130,7 @@ QUESTS: List[Dict[str, Any]] = [
         ),
     },
 
-    # ── Module 5: Индусмент и манипуляция ───────────────────────────────────
+    # ── Module 5: Inducement и манипуляция ──────────────────────────────────
     {
         "id": "m5_task", "module_index": 4,
         "title": "Миссия 5-1: Поймай ловушку",
@@ -145,7 +145,7 @@ QUESTS: List[Dict[str, Any]] = [
     },
     {
         "id": "m5_quiz", "module_index": 4,
-        "title": "Миссия 5-2: Квиз — индусмент и манипуляция",
+        "title": "Миссия 5-2: Квиз — Inducement и манипуляция",
         "type": "quiz", "xp_reward": 80, "quiz_ref": "manipulation_quiz", "auto": True,
     },
     {
