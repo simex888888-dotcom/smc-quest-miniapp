@@ -801,11 +801,12 @@ async function openLesson(key) {
 
     openModal("#lessonModal");
 
-    const chartRes = await fetch(`${API}/chart/${key}/png`);
+    const chartRes = await fetch(`${API}/chart/${key}`);
     if (chartRes.ok) {
-      const blob = await chartRes.blob();
+      const chartData = await chartRes.json();
       img.onload = () => { loading.style.display = "none"; img.style.display = "block"; };
-      img.src = URL.createObjectURL(blob);
+      img.onerror = () => { loading.innerHTML = "<span>График для этого урока недоступен</span>"; };
+      img.src = `data:${chartData.mime};base64,${chartData.image_base64}`;
     } else {
       loading.innerHTML = "<span>График для этого урока недоступен</span>";
     }
@@ -968,9 +969,12 @@ function onPhotoSelected(input) {
     _hwPhotoBase64 = e.target.result; // data:image/...;base64,...
     const wrap = $("#photoPreviewWrap");
     const img  = $("#photoPreviewImg");
+    img.onload = () => {
+      wrap?.classList.remove("hidden");
+      $("#photoDropArea")?.classList.add("hidden");
+    };
+    img.onerror = () => { showToast("Не удалось загрузить фото", "error"); };
     img.src = _hwPhotoBase64;
-    wrap?.classList.remove("hidden");
-    $("#photoDropArea")?.classList.add("hidden");
   };
   reader.readAsDataURL(file);
 }
