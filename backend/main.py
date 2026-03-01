@@ -105,9 +105,12 @@ class PenaltyPaymentRequest(BaseModel):
 
 # ── UTILS ─────────────────────────────────────────────────────────────────────
 
+def _get_admin_ids() -> set:
+    raw = os.getenv("ADMIN_ID", "0")
+    return {int(x.strip()) for x in raw.split(",") if x.strip().isdigit()}
+
 def check_admin(admin_id: int):
-    ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
-    if admin_id != ADMIN_ID:
+    if admin_id not in _get_admin_ids():
         raise HTTPException(status_code=403, detail="Нет доступа")
 
 

@@ -960,11 +960,14 @@ function onQuizFinished(data) {
 // ── PHOTO UPLOAD ───────────────────────────────────────────────────────────
 let _hwPhotoBase64 = null;
 
-// Compress image via Canvas → JPEG ≤ ~500 KB so it fits in JSON request
-function compressAndSetPhoto(rawDataUrl) {
+// Compress via Canvas → JPEG. Uses createObjectURL to avoid loading
+// the entire file into JS heap (prevents iOS WKWebView crash on large photos).
+function compressAndSetPhoto(file) {
+  const objectUrl = URL.createObjectURL(file);
   const tmpImg = new Image();
+
   tmpImg.onload = () => {
-    const MAX = 1200;
+    const MAX = 900;
     let w = tmpImg.naturalWidth, h = tmpImg.naturalHeight;
     if (w > MAX || h > MAX) {
       if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -973,6 +976,7 @@ function compressAndSetPhoto(rawDataUrl) {
     const canvas = document.createElement("canvas");
     canvas.width = w; canvas.height = h;
     canvas.getContext("2d").drawImage(tmpImg, 0, 0, w, h);
+    URL.revokeObjectURL(objectUrl); // free memory immediately
     _hwPhotoBase64 = canvas.toDataURL("image/jpeg", 0.82);
 
     const prevImg = $("#photoPreviewImg");
@@ -981,28 +985,27 @@ function compressAndSetPhoto(rawDataUrl) {
         $("#photoPreviewWrap")?.classList.remove("hidden");
         $("#photoDropArea")?.classList.add("hidden");
       };
-      prevImg.onerror = () => showToast("Не удалось отобразить фото", "error");
       prevImg.src = _hwPhotoBase64;
     }
   };
-  tmpImg.onerror = () => showToast("Не удалось прочитать фото", "error");
-  tmpImg.src = rawDataUrl;
+
+  tmpImg.onerror = () => {
+    URL.revokeObjectURL(objectUrl);
+    showToast("Не удалось прочитать фото. Попробуй сделать скриншот и загрузить его.", "error");
+  };
+
+  tmpImg.src = objectUrl;
 }
 
 function onPhotoSelected(input) {
   const file = input.files[0];
   if (!file) return;
-  if (file.size > 20 * 1024 * 1024) { showToast("Файл слишком большой (макс 20MB)", "error"); return; }
-  const reader = new FileReader();
-  reader.onload = (e) => compressAndSetPhoto(e.target.result);
-  reader.onerror = () => showToast("Ошибка чтения файла", "error");
-  reader.readAsDataURL(file);
+  compressAndSetPhoto(file);
 }
 
 function removePhoto() {
   _hwPhotoBase64 = null;
-  const wrap = $("#photoPreviewWrap");
-  wrap?.classList.add("hidden");
+  $("#photoPreviewWrap")?.classList.add("hidden");
   $("#photoDropArea")?.classList.remove("hidden");
   const input = $("#hwPhotoInput");
   if (input) input.value = "";
