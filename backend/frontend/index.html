@@ -423,16 +423,16 @@
 
       <!-- Photo upload -->
       <div id="taskPhotoUpload">
-        <div class="photo-upload-area" id="photoDropArea" onclick="$('#hwPhotoInput').click()">
+        <label class="photo-upload-area" id="photoDropArea" for="hwPhotoInput">
           <input type="file" id="hwPhotoInput" accept="image/*" onchange="onPhotoSelected(this)"/>
           <span class="photo-upload-icon">📷</span>
           <div class="photo-upload-label">
             <strong>Загрузить скриншот графика</strong><br/>
             Нажми чтобы выбрать из галереи
           </div>
-        </div>
+        </label>
         <div class="photo-preview-wrap hidden" id="photoPreviewWrap">
-          <img id="photoPreviewImg" src="" alt="Preview"/>
+          <img id="photoPreviewImg" src="" alt=""/>
           <button class="photo-preview-remove" onclick="removePhoto()" title="Удалить фото">✕</button>
         </div>
       </div>
