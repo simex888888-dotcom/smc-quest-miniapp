@@ -446,6 +446,32 @@ async def submit_task(req: QuestSubmitRequest):
         # Store only the first 500KB worth of base64 to prevent bloat
         state["homework_photo"] = req.photo[:700_000]
     save_progress()
+
+    # ── Notify all admins ──────────────────────────────────────────────────
+    quest_obj  = next((q for q in QUESTS if q["id"] == req.quest_id), None)
+    quest_title = quest_obj["title"] if quest_obj else req.quest_id
+    user_name   = state.get("name") or str(req.user_id)
+    admin_text  = (
+        f"📬 *Новое домашнее задание!*\n\n"
+        f"👤 Студент: *{user_name}* (`{req.user_id}`)\n"
+        f"📝 Задание: *{quest_title}*\n\n"
+        f"✅ Принять:  `/approve {req.user_id} {req.quest_id}`\n"
+        f"🔄 Доработка: `/revision {req.user_id} {req.quest_id} комментарий`\n"
+        f"⛔ Отклонить: `/reject {req.user_id} {req.quest_id} причина`"
+    )
+    import io as _io
+    for aid in _get_admin_ids():
+        try:
+            if req.photo:
+                photo_bytes = base64.b64decode(req.photo.split(",", 1)[-1])
+                buf = _io.BytesIO(photo_bytes)
+                buf.name = "homework.jpg"
+                telegram_bot.send_photo(aid, buf, caption=admin_text, parse_mode="Markdown")
+            else:
+                telegram_bot.send_message(aid, admin_text, parse_mode="Markdown")
+        except Exception as e:
+            logger.error(f"Admin notify {aid}: {e}")
+
     return {
         "ok": True,
         "message": "Задание принято на проверку. Преподаватель проверит в течение 24 часов.",
