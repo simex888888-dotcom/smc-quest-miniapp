@@ -9,7 +9,13 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN   = os.getenv("BOT_TOKEN", "")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
-ADMIN_ID    = int(os.getenv("ADMIN_ID", "0"))
+
+def _admin_ids() -> set:
+    raw = os.getenv("ADMIN_ID", "0")
+    return {int(x.strip()) for x in raw.split(",") if x.strip().isdigit()}
+
+def is_admin(uid: int) -> bool:
+    return uid in _admin_ids()
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="Markdown")
 
@@ -177,7 +183,7 @@ def cmd_deadline(message: types.Message):
 
 @bot.message_handler(commands=["extend"])
 def cmd_extend(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message.from_user.id):
         return
     from progress import get_user_state, save_progress
     from datetime import datetime, timedelta
@@ -210,7 +216,7 @@ def cmd_extend(message: types.Message):
 
 @bot.message_handler(commands=["approve"])
 def cmd_approve(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message.from_user.id):
         return
     from progress import get_user_state, save_progress, add_xp, set_module_deadline, DEFAULT_DEADLINE_HOURS
     from quests import QUESTS
@@ -261,7 +267,7 @@ def cmd_approve(message: types.Message):
 def cmd_reject(message: types.Message):
     """Usage: /reject user_id quest_id [комментарий]  → rejected
               /revision user_id quest_id [комментарий] → revision (needs resubmit)"""
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message.from_user.id):
         return
     from progress import get_user_state, save_progress
     cmd = message.text.split()[0].lstrip("/")   # "reject" or "revision"
