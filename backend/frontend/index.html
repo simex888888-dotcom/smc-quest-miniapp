@@ -450,6 +450,40 @@
     </div>
   </div>
 
+  <!-- ══ SEND PREVIEW MODAL ═════════════════════════════════════════════ -->
+  <div id="sendPreviewModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeSendPreview()"></div>
+    <div class="modal-content send-preview-content">
+      <button class="modal-close" onclick="closeSendPreview()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <div class="modal-tag">📤 ОТПРАВКА</div>
+      <h2 class="modal-title">Подтверди отправку</h2>
+      <div class="spm-task-name" id="sendPreviewTitle"></div>
+      <div class="spm-img-wrap" id="sendPreviewImgWrap">
+        <img id="sendPreviewImg" src="" alt="" class="spm-img"/>
+        <div class="spm-no-photo hidden" id="sendPreviewNoPhoto">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" opacity="0.4">
+            <rect x="2" y="7" width="28" height="20" rx="3" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="16" cy="17" r="5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M12 7L14 4H18L20 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span>Скриншот не прикреплён</span>
+          <small>Преподаватель может отклонить без фото</small>
+        </div>
+      </div>
+      <div class="spm-meta" id="sendPreviewMeta"></div>
+      <div class="spm-actions">
+        <button class="spm-back-btn" onclick="closeSendPreview()">← Назад</button>
+        <button class="btn-primary spm-send-btn" id="sendPreviewConfirmBtn" onclick="doSubmitTask()">
+          📤 Отправить
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ══ RESULT MODAL ════════════════════════════════════════════════════ -->
   <div id="resultModal" class="modal hidden">
     <div class="modal-backdrop" onclick="closeModal('resultModal')"></div>

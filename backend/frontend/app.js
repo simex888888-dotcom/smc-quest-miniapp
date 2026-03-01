@@ -960,22 +960,42 @@ function onQuizFinished(data) {
 // ── PHOTO UPLOAD ───────────────────────────────────────────────────────────
 let _hwPhotoBase64 = null;
 
+// Compress image via Canvas → JPEG ≤ ~500 KB so it fits in JSON request
+function compressAndSetPhoto(rawDataUrl) {
+  const tmpImg = new Image();
+  tmpImg.onload = () => {
+    const MAX = 1200;
+    let w = tmpImg.naturalWidth, h = tmpImg.naturalHeight;
+    if (w > MAX || h > MAX) {
+      if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+      else        { w = Math.round(w * MAX / h); h = MAX; }
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(tmpImg, 0, 0, w, h);
+    _hwPhotoBase64 = canvas.toDataURL("image/jpeg", 0.82);
+
+    const prevImg = $("#photoPreviewImg");
+    if (prevImg) {
+      prevImg.onload = () => {
+        $("#photoPreviewWrap")?.classList.remove("hidden");
+        $("#photoDropArea")?.classList.add("hidden");
+      };
+      prevImg.onerror = () => showToast("Не удалось отобразить фото", "error");
+      prevImg.src = _hwPhotoBase64;
+    }
+  };
+  tmpImg.onerror = () => showToast("Не удалось прочитать фото", "error");
+  tmpImg.src = rawDataUrl;
+}
+
 function onPhotoSelected(input) {
   const file = input.files[0];
   if (!file) return;
-  if (file.size > 8 * 1024 * 1024) { showToast("Файл слишком большой (макс 8MB)", "error"); return; }
+  if (file.size > 20 * 1024 * 1024) { showToast("Файл слишком большой (макс 20MB)", "error"); return; }
   const reader = new FileReader();
-  reader.onload = (e) => {
-    _hwPhotoBase64 = e.target.result; // data:image/...;base64,...
-    const wrap = $("#photoPreviewWrap");
-    const img  = $("#photoPreviewImg");
-    img.onload = () => {
-      wrap?.classList.remove("hidden");
-      $("#photoDropArea")?.classList.add("hidden");
-    };
-    img.onerror = () => { showToast("Не удалось загрузить фото", "error"); };
-    img.src = _hwPhotoBase64;
-  };
+  reader.onload = (e) => compressAndSetPhoto(e.target.result);
+  reader.onerror = () => showToast("Ошибка чтения файла", "error");
   reader.readAsDataURL(file);
 }
 
@@ -1060,11 +1080,42 @@ function openTask(questId, title, xpReward, description) {
   openModal("#taskModal");
 }
 
-async function submitCurrentTask() {
+// Open the send-preview confirmation modal
+function submitCurrentTask() {
   if (!state.currentQuestId) return;
-  const btn = $("#taskSubmitBtn");
-  btn.disabled = true;
-  btn.textContent = "⏳ Отправляю...";
+
+  const titleEl   = document.getElementById("sendPreviewTitle");
+  const imgEl     = document.getElementById("sendPreviewImg");
+  const noPhotoEl = document.getElementById("sendPreviewNoPhoto");
+  const metaEl    = document.getElementById("sendPreviewMeta");
+  const confirmBtn = document.getElementById("sendPreviewConfirmBtn");
+
+  if (titleEl) titleEl.textContent = $("#taskTitle")?.textContent || "";
+
+  if (_hwPhotoBase64) {
+    if (imgEl)     { imgEl.src = _hwPhotoBase64; imgEl.classList.remove("hidden"); }
+    if (noPhotoEl) noPhotoEl.classList.add("hidden");
+    if (metaEl) {
+      const kb = Math.round(_hwPhotoBase64.length * 0.75 / 1024);
+      metaEl.textContent = `📎 Скриншот прикреплён · ${kb} KB`;
+    }
+  } else {
+    if (imgEl)     { imgEl.src = ""; imgEl.classList.add("hidden"); }
+    if (noPhotoEl) noPhotoEl.classList.remove("hidden");
+    if (metaEl)    metaEl.textContent = "";
+  }
+
+  if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = "📤 Отправить"; }
+  openModal("#sendPreviewModal");
+}
+
+function closeSendPreview() {
+  closeModal("#sendPreviewModal");
+}
+
+async function doSubmitTask() {
+  const confirmBtn = document.getElementById("sendPreviewConfirmBtn");
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = "⏳ Отправляю..."; }
 
   try {
     const body = {
@@ -1073,19 +1124,22 @@ async function submitCurrentTask() {
     };
     if (_hwPhotoBase64) body.photo = _hwPhotoBase64;
 
-    const res = await fetch(`${API}/quest/submit`, {
+    const res  = await fetch(`${API}/quest/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     const data = await res.json();
 
+    closeSendPreview();
+
     if (data.ok) {
       const statusEl = $("#taskStatus");
       statusEl.className = "task-status pending";
       statusEl.textContent = "⏳ Задание отправлено! Преподаватель проверит в течение 24 часов.";
-      btn.textContent = "✓ Отправлено";
-      // Hide upload UI after submit
+      const submitBtn = $("#taskSubmitBtn");
+      submitBtn.textContent = "✓ Отправлено";
+      submitBtn.classList.add("hidden");
       $("#taskPhotoUpload")?.classList.add("hidden");
       $("#taskSelfCheck")?.classList.add("hidden");
       showToast("Задание отправлено на проверку!", "success");
@@ -1095,18 +1149,19 @@ async function submitCurrentTask() {
       closeModal("#taskModal");
       showDeadlineExpiredScreen();
     } else {
-      btn.disabled = false;
-      btn.textContent = "Отправить на проверку";
+      if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = "📤 Отправить"; }
       showToast(data.message || "Ошибка отправки", "error");
     }
   } catch (e) {
-    console.error("submitTask:", e);
-    btn.disabled = false;
-    btn.textContent = "Отправить на проверку";
+    console.error("doSubmitTask:", e);
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = "📤 Отправить"; }
     showToast("Ошибка сети", "error");
   }
 }
+
 window.submitCurrentTask = submitCurrentTask;
+window.closeSendPreview   = closeSendPreview;
+window.doSubmitTask       = doSubmitTask;
 
 // ── RESULT MODAL ──────────────────────────────────────────────────────────
 function showResult(emoji, title, text, xp) {
