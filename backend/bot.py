@@ -1,3 +1,4 @@
+import html as _html
 import os
 import logging
 from dotenv import load_dotenv
@@ -246,19 +247,19 @@ def cmd_approve(message: types.Message):
     save_progress()
     bot.reply_to(message, f"✅ Квест {quest_id} засчитан пользователю {uid}.")
 
-    notify = f"✅ *Домашнее задание принято!*\n+{quest['xp_reward']} XP"
+    notify = f"✅ <b>Домашнее задание принято!</b>\n+{quest['xp_reward']} XP"
     if advanced:
         new_idx = state["module_index"]
         new_mod = MODULES[new_idx]["title"] if new_idx < len(MODULES) else "Завершено"
         notify += (
-            f"\n\n🎉 *Модуль {new_idx} разблокирован: {new_mod}*\n"
+            f"\n\n🎉 <b>Модуль {new_idx} разблокирован: {_html.escape(new_mod)}</b>\n"
             f"⏰ Дедлайн: 72 часа\n\n"
-            "_Биткоин не ждал тебя в 2017. Не будет ждать и сейчас. Начинай._"
+            "<i>Биткоин не ждал тебя в 2017. Не будет ждать и сейчас. Начинай.</i>"
         )
     if leveled_up:
-        notify += f"\n⬆️ *Новый уровень: {level}!*\n_{state['rank']}_"
+        notify += f"\n⬆️ <b>Новый уровень: {level}!</b>\n<i>{_html.escape(str(state['rank']))}</i>"
     try:
-        bot.send_message(uid, notify, parse_mode="Markdown")
+        bot.send_message(uid, notify, parse_mode="HTML")
     except Exception:
         pass
 
@@ -283,18 +284,18 @@ def cmd_reject(message: types.Message):
     bot.reply_to(message, f"{'🔄 На доработке' if status == 'revision' else '⛔ Отклонено'}.")
     if status == "revision":
         msg = (
-            f"🔄 *Нужна доработка домашки*\n\n"
-            f"Фидбек:\n_{comment}_\n\n"
+            f"🔄 <b>Нужна доработка домашки</b>\n\n"
+            f"Фидбек:\n<i>{_html.escape(comment)}</i>\n\n"
             "Исправь разметку и отправь скрин снова. Модуль откроется после принятия."
         )
     else:
         msg = (
-            f"⛔ *Домашка не принята*\n\n"
-            f"Причина:\n_{comment}_\n\n"
+            f"⛔ <b>Домашка не принята</b>\n\n"
+            f"Причина:\n<i>{_html.escape(comment)}</i>\n\n"
             "Серьёзные ошибки в структуре. Пересмотри уроки и сделай разметку заново."
         )
     try:
-        bot.send_message(uid, msg, parse_mode="Markdown")
+        bot.send_message(uid, msg, parse_mode="HTML")
     except Exception:
         pass
 
