@@ -1,9 +1,11 @@
+import asyncio
 import html as _html
 import io
 import os
 import base64
 import logging
 import random
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timedelta
@@ -38,7 +40,18 @@ from quests import QUESTS, QUIZZES
 from charts import generate_chart
 from bot import bot as telegram_bot, setup_webhook, process_update, make_hw_keyboard
 
-app = FastAPI(title="CHM Smart Money Academy API", version="4.0.0")
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Application lifespan: load data on startup."""
+    load_progress()
+    logger.info("Progress loaded: %d users", len(user_progress))
+    if os.getenv("WEBHOOK_URL"):
+        setup_webhook()
+    else:
+        logger.info("WEBHOOK_URL not set — webhook not configured (polling mode)")
+    yield
+
+app = FastAPI(title="CHM Smart Money Academy API", version="4.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -107,9 +120,15 @@ class PenaltyPaymentRequest(BaseModel):
 
 # ── UTILS ─────────────────────────────────────────────────────────────────────
 
+_cached_admin_ids: set = set()
+
 def _get_admin_ids() -> set:
-    raw = os.getenv("ADMIN_ID", "0")
-    return {int(x.strip()) for x in raw.split(",") if x.strip().isdigit()}
+    """Parse and cache admin IDs from ADMIN_ID env var."""
+    global _cached_admin_ids
+    if not _cached_admin_ids:
+        raw = os.getenv("ADMIN_ID", "0")
+        _cached_admin_ids = {int(x.strip()) for x in raw.split(",") if x.strip().isdigit()}
+    return _cached_admin_ids
 
 def _get_admin_channel_id() -> int | None:
     raw = os.getenv("ADMIN_CHANNEL_ID", "").strip()
@@ -135,11 +154,18 @@ def _send_hw_notification(chat_id: int, admin_text: str, photo_b64: str | None,
     telegram_bot.send_message(chat_id, admin_text, parse_mode="HTML", reply_markup=kb)
 
 def check_admin(admin_id: int):
+    """Raise 403 if admin_id is not in the allowed admin set."""
     if admin_id not in _get_admin_ids():
         raise HTTPException(status_code=403, detail="Нет доступа")
 
 
+# ── CHART CACHE (TTL-based, avoids regenerating expensive matplotlib charts) ─
+_chart_cache: dict = {}
+_CHART_CACHE_TTL = 3600  # 1 hour
+
+
 def try_advance_module(user_id: int) -> bool:
+    """Advance user to next module if all current module quests are completed."""
     state = get_user_state(user_id)
     idx = state["module_index"]
     if idx >= len(MODULES) - 1:
@@ -189,6 +215,7 @@ def build_deadline_info(state: dict) -> dict:
 
 @app.get("/")
 async def root():
+    """Serve frontend index or return API info."""
     index = FRONTEND_DIR / "index.html"
     if index.exists():
         return FileResponse(str(index))
@@ -197,6 +224,7 @@ async def root():
 
 @app.get("/health")
 async def health():
+    """Health check endpoint."""
     return {"ok": True, "users": len(user_progress), "version": "4.0.0"}
 
 
@@ -204,6 +232,7 @@ async def health():
 
 @app.post("/api/user/init")
 async def user_init(req: UserInitRequest):
+    """Initialize or update user session: set name, update streak, claim daily bonus."""
     state = get_user_state(req.user_id)
     name = (
         req.username
@@ -219,10 +248,13 @@ async def user_init(req: UserInitRequest):
     # Track daily streak
     streak, is_new_day = update_streak(req.user_id)
 
-    # Daily bonus XP
+    # Daily bonus XP (also calls save_progress internally)
     daily_xp, got_bonus = claim_daily_bonus(req.user_id)
 
-    save_progress()
+    # Note: update_streak and claim_daily_bonus already call save_progress()
+    # Only save if name changed and neither function triggered a save
+    if not is_new_day and not got_bonus:
+        save_progress()
     return {
         "ok": True,
         "state": state,
@@ -239,6 +271,7 @@ def _state_safe(state: dict) -> dict:
 
 @app.get("/api/user/{user_id}")
 async def get_user(user_id: int):
+    """Return user state (excluding large binary fields)."""
     state = get_user_state(user_id)
     return _state_safe(state)
 
@@ -262,17 +295,20 @@ async def get_user_full(user_id: int):
 
 @app.get("/api/modules")
 async def get_modules():
+    """Return all course modules."""
     return {"modules": MODULES}
 
 
 @app.get("/api/lessons/meta")
 async def lessons_meta():
+    """Return lesson titles and short texts for all lessons."""
     data = {k: {"title": v.get("title", k), "text": v.get("text", "")} for k, v in LESSONS.items()}
     return JSONResponse(data)
 
 
 @app.get("/api/lesson/{lesson_key}")
 async def get_lesson(lesson_key: str):
+    """Return full lesson content by key."""
     lesson = LESSONS.get(lesson_key)
     if not lesson:
         raise HTTPException(status_code=404, detail="Урок не найден")
@@ -287,27 +323,47 @@ async def get_lesson(lesson_key: str):
 
 # ── CHARTS ───────────────────────────────────────────────────────────────────
 
-@app.get("/api/chart/{lesson_key}")
-async def get_chart(lesson_key: str):
+def _get_cached_chart(lesson_key: str) -> Optional[bytes]:
+    """Get chart bytes from cache or generate and cache."""
+    import time
+    now = time.time()
+    cached = _chart_cache.get(lesson_key)
+    if cached and (now - cached[1]) < _CHART_CACHE_TTL:
+        return cached[0]
     buf = generate_chart(lesson_key)
     if buf is None:
+        return None
+    data = buf.read()
+    _chart_cache[lesson_key] = (data, now)
+    return data
+
+
+@app.get("/api/chart/{lesson_key}")
+async def get_chart(lesson_key: str):
+    """Return chart as base64-encoded PNG JSON response."""
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(None, _get_cached_chart, lesson_key)
+    if data is None:
         raise HTTPException(status_code=404, detail="График не найден")
-    img_b64 = base64.b64encode(buf.read()).decode()
+    img_b64 = base64.b64encode(data).decode()
     return {"image_base64": img_b64, "mime": "image/png"}
 
 
 @app.get("/api/chart/{lesson_key}/png")
 async def get_chart_png(lesson_key: str):
-    buf = generate_chart(lesson_key)
-    if buf is None:
+    """Return chart as raw PNG binary response."""
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(None, _get_cached_chart, lesson_key)
+    if data is None:
         raise HTTPException(status_code=404, detail="График не найден")
-    return Response(content=buf.read(), media_type="image/png")
+    return Response(content=data, media_type="image/png")
 
 
 # ── QUESTS & QUIZZES ─────────────────────────────────────────────────────────
 
 @app.get("/api/quests/{user_id}")
 async def get_quests(user_id: int):
+    """Return quests for user's current module with deadline info."""
     state = get_user_state(user_id)
     idx = state["module_index"]
     completed = set(state["completed_quests"])
@@ -342,6 +398,7 @@ async def get_quests(user_id: int):
 
 @app.post("/api/quest/start")
 async def start_quest(req: QuestSubmitRequest):
+    """Start a quest; for quizzes, shuffle and return questions."""
     state = get_user_state(req.user_id)
     if is_deadline_expired(state):
         return {
@@ -390,6 +447,7 @@ async def start_quest(req: QuestSubmitRequest):
 
 @app.post("/api/quiz/answer")
 async def quiz_answer(req: QuizAnswerRequest):
+    """Process a quiz answer; finalize quiz if all questions answered."""
     state = get_user_state(req.user_id)
     qstate = state.get("quiz_state")
     if not qstate:
@@ -420,7 +478,8 @@ async def quiz_answer(req: QuizAnswerRequest):
                     award_badge(req.user_id, "first_blood")
 
                 advanced = try_advance_module(req.user_id)
-                save_progress()
+                # add_xp, award_badge, try_advance_module already save;
+                # no extra save_progress() needed here
                 return {
                     "ok": True, "finished": True, "passed": True,
                     "score": round(score * 100), "correct": qstate["correct"], "total": total,
@@ -444,6 +503,7 @@ async def quiz_answer(req: QuizAnswerRequest):
 
 @app.post("/api/quest/submit")
 async def submit_task(req: QuestSubmitRequest):
+    """Submit homework task with optional photo; notify admins asynchronously."""
     state = get_user_state(req.user_id)
     if is_deadline_expired(state):
         return {
@@ -473,7 +533,7 @@ async def submit_task(req: QuestSubmitRequest):
         state["homework_photo"] = req.photo[:2_000_000]
     save_progress()
 
-    # ── Notify all admins ──────────────────────────────────────────────────
+    # ── Notify all admins (non-blocking) ────────────────────────────────────
     quest_obj   = next((q for q in QUESTS if q["id"] == req.quest_id), None)
     quest_title = quest_obj["title"] if quest_obj else req.quest_id
     user_name   = state.get("name") or str(req.user_id)
@@ -499,6 +559,26 @@ async def submit_task(req: QuestSubmitRequest):
             _send_hw_notification(aid, admin_text, req.photo, req.user_id, req.quest_id)
         except Exception as e:
             logger.error(f"Admin notify {aid}: {e}")
+
+    def _notify_admins():
+        for aid in _get_admin_ids():
+            try:
+                if req.photo:
+                    photo_bytes = base64.b64decode(req.photo.split(",", 1)[-1])
+                    buf = io.BytesIO(photo_bytes)
+                    buf.name = "homework.jpg"
+                    try:
+                        telegram_bot.send_photo(aid, buf, caption=admin_text, parse_mode="HTML")
+                    except Exception as photo_err:
+                        logger.error("Admin photo %d: %s", aid, photo_err)
+                        telegram_bot.send_message(aid, admin_text, parse_mode="HTML")
+                else:
+                    telegram_bot.send_message(aid, admin_text, parse_mode="HTML")
+            except Exception as e:
+                logger.error("Admin notify %d: %s", aid, e)
+
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, _notify_admins)
 
     return {
         "ok": True,
@@ -565,6 +645,7 @@ async def pay_deadline_penalty(req: PenaltyPaymentRequest):
 
 @app.get("/api/deadline/status/{user_id}")
 async def get_deadline_status(user_id: int):
+    """Return deadline status with penalty/repurchase amounts."""
     state = get_user_state(user_id)
     info = build_deadline_info(state)
     info["module_index"] = state["module_index"]
@@ -577,6 +658,7 @@ async def get_deadline_status(user_id: int):
 
 @app.post("/api/user/daily-bonus")
 async def daily_bonus_endpoint(user_id: int):
+    """Claim daily login bonus XP."""
     xp, got_bonus = claim_daily_bonus(user_id)
     streak, _ = update_streak(user_id)
     if got_bonus:
@@ -588,12 +670,14 @@ async def daily_bonus_endpoint(user_id: int):
 
 @app.get("/api/leaderboard")
 async def leaderboard(limit: int = Query(default=10, ge=1, le=50)):
+    """Return top users leaderboard."""
     board = get_leaderboard(limit)
     return {"leaderboard": board}
 
 
 @app.get("/api/stats/{user_id}")
 async def user_stats(user_id: int):
+    """Return detailed user statistics with deadline and module progress."""
     state = get_user_state(user_id)
     idx = state["module_index"]
     module_title = MODULES[idx]["title"] if idx < len(MODULES) else "Завершено"
@@ -619,6 +703,7 @@ async def user_stats(user_id: int):
 
 @app.post("/api/admin/approve")
 async def admin_approve(req: AdminApproveRequest):
+    """Admin: approve homework, award XP, and optionally advance module."""
     check_admin(req.admin_id)
     state = get_user_state(req.user_id)
     quest = next((q for q in QUESTS if q["id"] == req.quest_id), None)
@@ -650,6 +735,7 @@ async def admin_approve(req: AdminApproveRequest):
 
 @app.post("/api/admin/reject")
 async def admin_reject(req: AdminRejectRequest):
+    """Admin: reject or request revision for homework submission."""
     check_admin(req.admin_id)
     state = get_user_state(req.user_id)
     # "revision" = needs correction + resubmit; "rejected" = serious errors
@@ -661,6 +747,7 @@ async def admin_reject(req: AdminRejectRequest):
 
 @app.post("/api/admin/extend")
 async def admin_extend(req: ExtendRequest):
+    """Admin: extend user deadline by N days (does not count against MAX_EXTENSIONS)."""
     check_admin(req.admin_id)
     state = get_user_state(req.user_id)
     now = datetime.utcnow()
@@ -678,6 +765,7 @@ async def admin_extend(req: ExtendRequest):
 
 @app.get("/api/admin/users")
 async def admin_users(admin_id: int):
+    """Admin: list all users with progress, deadline, and homework status."""
     check_admin(admin_id)
     result = [
         {
@@ -715,6 +803,7 @@ async def get_homework_photo(user_id: int, admin_id: int):
 
 @app.post("/webhook")
 async def webhook(request: Request):
+    """Process incoming Telegram webhook updates."""
     try:
         data = await request.json()
         process_update(data)
@@ -723,11 +812,3 @@ async def webhook(request: Request):
     return {"ok": True}
 
 
-@app.on_event("startup")
-async def on_startup():
-    load_progress()
-    logger.info(f"Progress loaded: {len(user_progress)} users")
-    if os.getenv("WEBHOOK_URL"):
-        setup_webhook()
-    else:
-        logger.info("WEBHOOK_URL not set — webhook not configured (polling mode)")
