@@ -11,9 +11,14 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN   = os.getenv("BOT_TOKEN", "")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
 
+_cached_admin_ids: set = set()
+
 def _admin_ids() -> set:
-    raw = os.getenv("ADMIN_ID", "0")
-    return {int(x.strip()) for x in raw.split(",") if x.strip().isdigit()}
+    global _cached_admin_ids
+    if not _cached_admin_ids:
+        raw = os.getenv("ADMIN_ID", "0")
+        _cached_admin_ids = {int(x.strip()) for x in raw.split(",") if x.strip().isdigit()}
+    return _cached_admin_ids
 
 def is_admin(uid: int) -> bool:
     return uid in _admin_ids()
@@ -158,7 +163,7 @@ def cmd_deadline(message: types.Message):
             mins = int(hours_left * 60)
             bot.reply_to(
                 message,
-                f"🚨 *ПОСЛЕДНИЙ ШАС — {mins} МИНУТ!*\n\n"
+                f"🚨 *ПОСЛЕДНИЙ ЧАС — {mins} МИНУТ!*\n\n"
                 "Каждая минута промедления — потерянный сетап.\n"
                 "Профессионалы работают по расписанию. Сдавай СЕЙЧАС.",
                 reply_markup=make_main_keyboard(),
@@ -211,8 +216,8 @@ def cmd_extend(message: types.Message):
             f"Новый дедлайн: {new_date}\n\n"
             "Используй это время с умом. Рынок не будет ждать вечно."
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Не удалось уведомить пользователя %d о продлении: %s", uid, e)
 
 
 @bot.message_handler(commands=["approve"])
@@ -260,14 +265,17 @@ def cmd_approve(message: types.Message):
         notify += f"\n⬆️ <b>Новый уровень: {level}!</b>\n<i>{_html.escape(str(state['rank']))}</i>"
     try:
         bot.send_message(uid, notify, parse_mode="HTML")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Не удалось уведомить пользователя %d об одобрении: %s", uid, e)
 
 
 @bot.message_handler(commands=["reject"])
 def cmd_reject(message: types.Message):
-    """Usage: /reject user_id quest_id [комментарий]  → rejected
-              /revision user_id quest_id [комментарий] → revision (needs resubmit)"""
+    """Reject or request revision for a homework submission.
+
+    Handles both /reject (serious errors) and /revision (needs corrections).
+    Usage: /reject user_id quest_id [комментарий]
+    """
     if not is_admin(message.from_user.id):
         return
     from progress import get_user_state, save_progress
@@ -296,8 +304,8 @@ def cmd_reject(message: types.Message):
         )
     try:
         bot.send_message(uid, msg, parse_mode="HTML")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Не удалось уведомить пользователя %d об отклонении: %s", uid, e)
 
 
 @bot.message_handler(commands=["revision"])
@@ -333,7 +341,7 @@ def notify_deadline_warning(user_id: int, hours_left: float):
             mins = int(hours_left * 60)
             bot.send_message(
                 user_id,
-                f"🚨 *ПОСЛЕДНИЙ ШАС — {mins} МИНУТ!*\n\n"
+                f"🚨 *ПОСЛЕДНИЙ ЧАС — {mins} МИНУТ!*\n\n"
                 "Красный экран. Таймер идёт.\n"
                 "Сдавай домашку ПРЯМО СЕЙЧАС пока не заблокировали.",
                 reply_markup=make_main_keyboard(),

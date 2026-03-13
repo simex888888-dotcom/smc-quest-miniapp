@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import fcntl
 from pathlib import Path
 from datetime import datetime, timedelta, date
 from typing import Dict, Any, List, Tuple
@@ -10,6 +11,8 @@ logger = logging.getLogger(__name__)
 _data_dir = Path(os.getenv("DATA_DIR", "."))
 _data_dir.mkdir(parents=True, exist_ok=True)
 PROGRESS_FILE = _data_dir / "progress_smc.json"
+
+_save_scheduled = False
 
 # ── CONSTANTS ────────────────────────────────────────────────────────────────
 DEFAULT_DEADLINE_HOURS = 72   # 72 hours per module (the market doesn't wait)
@@ -97,8 +100,6 @@ BADGE_DEFS = {
                          "desc": "30 дней активности подряд"},
     "streak_60":        {"title": "Легенда дисциплины",       "icon": "👑",
                          "desc": "60 дней активности подряд"},
-    "iron_will":        {"title": "Железная воля",            "icon": "⚙️",
-                         "desc": "30 дней без пропусков"},
 
     # ── Community ────────────────────────────────────────────────────────
     "ghost":            {"title": "Призрак",                  "icon": "👻",
@@ -125,34 +126,44 @@ user_progress: Dict[int, Dict[str, Any]] = {}
 # ── LOAD / SAVE ───────────────────────────────────────────────────────────────
 
 def load_progress():
+    """Load user progress from JSON file with file locking."""
     global user_progress
     if PROGRESS_FILE.exists():
         try:
-            data = json.loads(PROGRESS_FILE.read_text(encoding="utf-8"))
+            with open(PROGRESS_FILE, "r", encoding="utf-8") as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                try:
+                    data = json.load(f)
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
             user_progress = {int(k): v for k, v in data.items()}
-            logger.info(f"Прогресс загружен: {len(user_progress)} пользователей")
+            logger.info("Прогресс загружен: %d пользователей", len(user_progress))
         except Exception as e:
-            logger.error(f"Ошибка загрузки прогресса: {e}")
+            logger.error("Ошибка загрузки прогресса: %s", e)
             user_progress = {}
     else:
         logger.info("Файл прогресса не найден, начинаем с нуля")
 
 
 def save_progress():
+    """Save user progress to JSON file with atomic write and file locking."""
     try:
         tmp = PROGRESS_FILE.with_suffix(".tmp")
-        tmp.write_text(
-            json.dumps(user_progress, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        with open(tmp, "w", encoding="utf-8") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                json.dump(user_progress, f, ensure_ascii=False, indent=2)
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
         tmp.replace(PROGRESS_FILE)
     except Exception as e:
-        logger.error(f"Ошибка сохранения прогресса: {e}")
+        logger.error("Ошибка сохранения прогресса: %s", e)
 
 
 # ── USER STATE ────────────────────────────────────────────────────────────────
 
 def get_user_state(user_id: int) -> Dict[str, Any]:
+    """Get or create user state dict. Ensures all fields exist via back-compat defaults."""
     if user_id not in user_progress:
         user_progress[user_id] = {
             "name": str(user_id),
@@ -186,6 +197,7 @@ def get_user_state(user_id: int) -> Dict[str, Any]:
 # ── LEVELS & RANKS ────────────────────────────────────────────────────────────
 
 def get_level_and_rank(xp: int) -> Tuple[int, str]:
+    """Return (level, rank_name) for a given XP total."""
     level, rank = 1, "Наблюдатель рынка"
     for threshold, lvl, name in SMC_LEVELS:
         if xp >= threshold:
@@ -202,6 +214,7 @@ def get_next_level_xp(current_xp: int) -> int:
 
 
 def add_xp(user_id: int, amount: int) -> Tuple[int, bool]:
+    """Add XP to user, recalculate level/rank, save. Returns (new_level, leveled_up)."""
     state = get_user_state(user_id)
     old_level = state["level"]
     state["xp"] += amount
@@ -249,8 +262,7 @@ def update_streak(user_id: int) -> Tuple[int, bool]:
         state["level"] = new_level
         state["rank"] = new_rank
 
-    if streak == 30 and "iron_will" not in state["badges"]:
-        state["badges"].append("iron_will")
+    if streak == 30 and "streak_30" not in state["badges"]:
         state["badges"].append("streak_30")
         state["xp"] += 500          # bonus XP for 30-day streak
         new_level, new_rank = get_level_and_rank(state["xp"])
@@ -294,6 +306,7 @@ def set_module_deadline(state: Dict[str, Any], hours: int = DEFAULT_DEADLINE_HOU
 
 
 def is_deadline_expired(state: Dict[str, Any]) -> bool:
+    """Check if the module deadline has passed."""
     dl = state.get("module_deadline")
     if not dl:
         return False
@@ -342,6 +355,7 @@ def award_badge(user_id: int, badge_id: str) -> bool:
 # ── RESET ─────────────────────────────────────────────────────────────────────
 
 def reset_user_progress(user_id: int):
+    """Reset user course progress while preserving streak and badges."""
     state = get_user_state(user_id)
     streak = state.get("streak", 0)
     last_active = state.get("last_active_date")
@@ -365,6 +379,7 @@ def reset_user_progress(user_id: int):
 # ── LEADERBOARD ───────────────────────────────────────────────────────────────
 
 def get_leaderboard(limit: int = 10) -> List[Dict[str, Any]]:
+    """Return top users sorted by XP descending."""
     entries = [
         {
             "user_id": uid,
@@ -378,6 +393,3 @@ def get_leaderboard(limit: int = 10) -> List[Dict[str, Any]]:
         for uid, st in user_progress.items()
     ]
     return sorted(entries, key=lambda x: x["xp"], reverse=True)[:limit]
-
-
-load_progress()
