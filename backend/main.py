@@ -36,22 +36,16 @@ from progress import (
 from lessons import LESSONS, MODULES
 from quests import QUESTS, QUIZZES
 from charts import generate_chart
-from bot import bot as telegram_bot, setup_webhook, process_update
+from bot import bot as telegram_bot, setup_webhook, process_update, make_hw_keyboard
 
 app = FastAPI(title="CHM Smart Money Academy API", version="4.0.0")
 
-_WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
-_ALLOWED_ORIGINS = list(filter(None, [
-    _WEBHOOK_URL,
-    "https://web.telegram.org",
-    "null",  # Telegram WebApp embedded webview sends Origin: null
-]))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ── Static frontend ───────────────────────────────────────────────────────────
@@ -116,6 +110,29 @@ class PenaltyPaymentRequest(BaseModel):
 def _get_admin_ids() -> set:
     raw = os.getenv("ADMIN_ID", "0")
     return {int(x.strip()) for x in raw.split(",") if x.strip().isdigit()}
+
+def _get_admin_channel_id() -> int | None:
+    raw = os.getenv("ADMIN_CHANNEL_ID", "").strip()
+    try:
+        return int(raw) if raw else None
+    except ValueError:
+        return None
+
+def _send_hw_notification(chat_id: int, admin_text: str, photo_b64: str | None,
+                          user_id: int, quest_id: str) -> None:
+    """Send homework notification to a chat/channel with inline buttons and photo fallback."""
+    kb = make_hw_keyboard(user_id, quest_id)
+    if photo_b64:
+        photo_bytes = base64.b64decode(photo_b64.split(",", 1)[-1])
+        buf = io.BytesIO(photo_bytes)
+        buf.name = "homework.jpg"
+        try:
+            telegram_bot.send_photo(chat_id, buf, caption=admin_text, parse_mode="HTML",
+                                    reply_markup=kb)
+            return
+        except Exception as e:
+            logger.error(f"send_photo to {chat_id}: {e}")
+    telegram_bot.send_message(chat_id, admin_text, parse_mode="HTML", reply_markup=kb)
 
 def check_admin(admin_id: int):
     if admin_id not in _get_admin_ids():
@@ -468,19 +485,18 @@ async def submit_task(req: QuestSubmitRequest):
         f"🔄 Доработка: <code>/revision {req.user_id} {req.quest_id} комментарий</code>\n"
         f"⛔ Отклонить: <code>/reject {req.user_id} {req.quest_id} причина</code>"
     )
+    # 1. Send to admin channel (primary)
+    channel_id = _get_admin_channel_id()
+    if channel_id:
+        try:
+            _send_hw_notification(channel_id, admin_text, req.photo, req.user_id, req.quest_id)
+        except Exception as e:
+            logger.error(f"Channel notify {channel_id}: {e}")
+
+    # 2. Send to individual admins (fallback / redundancy)
     for aid in _get_admin_ids():
         try:
-            if req.photo:
-                photo_bytes = base64.b64decode(req.photo.split(",", 1)[-1])
-                buf = io.BytesIO(photo_bytes)
-                buf.name = "homework.jpg"
-                try:
-                    telegram_bot.send_photo(aid, buf, caption=admin_text, parse_mode="HTML")
-                except Exception as photo_err:
-                    logger.error(f"Admin photo {aid}: {photo_err}")
-                    telegram_bot.send_message(aid, admin_text, parse_mode="HTML")
-            else:
-                telegram_bot.send_message(aid, admin_text, parse_mode="HTML")
+            _send_hw_notification(aid, admin_text, req.photo, req.user_id, req.quest_id)
         except Exception as e:
             logger.error(f"Admin notify {aid}: {e}")
 
