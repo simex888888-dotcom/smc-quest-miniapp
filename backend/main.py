@@ -1,3 +1,4 @@
+import html as _html
 import io
 import os
 import base64
@@ -456,16 +457,16 @@ async def submit_task(req: QuestSubmitRequest):
     save_progress()
 
     # ── Notify all admins ──────────────────────────────────────────────────
-    quest_obj  = next((q for q in QUESTS if q["id"] == req.quest_id), None)
+    quest_obj   = next((q for q in QUESTS if q["id"] == req.quest_id), None)
     quest_title = quest_obj["title"] if quest_obj else req.quest_id
     user_name   = state.get("name") or str(req.user_id)
     admin_text  = (
-        f"📬 *Новое домашнее задание!*\n\n"
-        f"👤 Студент: *{user_name}* (`{req.user_id}`)\n"
-        f"📝 Задание: *{quest_title}*\n\n"
-        f"✅ Принять:  `/approve {req.user_id} {req.quest_id}`\n"
-        f"🔄 Доработка: `/revision {req.user_id} {req.quest_id} комментарий`\n"
-        f"⛔ Отклонить: `/reject {req.user_id} {req.quest_id} причина`"
+        f"📬 <b>Новое домашнее задание!</b>\n\n"
+        f"👤 Студент: <b>{_html.escape(str(user_name))}</b> (<code>{req.user_id}</code>)\n"
+        f"📝 Задание: <b>{_html.escape(str(quest_title))}</b>\n\n"
+        f"✅ Принять: <code>/approve {req.user_id} {req.quest_id}</code>\n"
+        f"🔄 Доработка: <code>/revision {req.user_id} {req.quest_id} комментарий</code>\n"
+        f"⛔ Отклонить: <code>/reject {req.user_id} {req.quest_id} причина</code>"
     )
     for aid in _get_admin_ids():
         try:
@@ -473,9 +474,13 @@ async def submit_task(req: QuestSubmitRequest):
                 photo_bytes = base64.b64decode(req.photo.split(",", 1)[-1])
                 buf = io.BytesIO(photo_bytes)
                 buf.name = "homework.jpg"
-                telegram_bot.send_photo(aid, buf, caption=admin_text, parse_mode="Markdown")
+                try:
+                    telegram_bot.send_photo(aid, buf, caption=admin_text, parse_mode="HTML")
+                except Exception as photo_err:
+                    logger.error(f"Admin photo {aid}: {photo_err}")
+                    telegram_bot.send_message(aid, admin_text, parse_mode="HTML")
             else:
-                telegram_bot.send_message(aid, admin_text, parse_mode="Markdown")
+                telegram_bot.send_message(aid, admin_text, parse_mode="HTML")
         except Exception as e:
             logger.error(f"Admin notify {aid}: {e}")
 
