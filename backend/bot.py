@@ -332,12 +332,19 @@ def handle_hw_callback(call: types.CallbackQuery):
     state = get_user_state(uid)
     quest = next((q for q in QUESTS if q["id"] == quest_id), None)
 
+    admin_name = f"@{call.from_user.username}" if call.from_user.username else call.from_user.first_name
+
     if action == "hw_ap":
         if not quest:
-            bot.answer_callback_query(call.id, "❌ Квест не найден"); return
+            bot.answer_callback_query(call.id, "❌ Квест не найден", show_alert=True); return
+
+        # ── 1. Answer immediately so Telegram doesn't show spinner ──
+        bot.answer_callback_query(call.id, "✅ Принято!")
+
+        # ── 2. Update progress ──
         if quest_id not in state["completed_quests"]:
             state["completed_quests"].append(quest_id)
-        state["active_quest"] = None
+        state["active_quest"]    = None
         state["homework_status"] = "approved"
         level, leveled_up = add_xp(uid, quest["xp_reward"])
         advanced = False
@@ -351,16 +358,19 @@ def handle_hw_callback(call: types.CallbackQuery):
                     advanced = True
         save_progress()
 
-        # Edit the channel message to mark as done
-        done_mark = f"✅ <b>Принято</b> — @{call.from_user.username or call.from_user.first_name}"
+        # ── 3. Remove buttons + mark message ──
+        done_text = f"✅ <b>Принято</b> — {_html.escape(admin_name)}"
         try:
-            bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
-            bot.answer_callback_query(call.id, "✅ Принято!")
-            bot.send_message(call.message.chat.id, done_mark, parse_mode="HTML",
-                             reply_to_message_id=call.message.message_id)
-        except Exception:
-            bot.answer_callback_query(call.id, "✅ Принято!")
+            bot.edit_message_reply_markup(
+                call.message.chat.id, call.message.message_id, reply_markup=None)
+        except Exception as e:
+            logger.warning(f"edit_markup approve: {e}")
+        try:
+            bot.send_message(call.message.chat.id, done_text, parse_mode="HTML")
+        except Exception as e:
+            logger.warning(f"send done_text approve: {e}")
 
+        # ── 4. Notify student ──
         notify = f"✅ <b>Домашнее задание принято!</b>\n+{quest['xp_reward']} XP"
         if advanced:
             new_idx = state["module_index"]
@@ -374,31 +384,40 @@ def handle_hw_callback(call: types.CallbackQuery):
             notify += f"\n⬆️ <b>Новый уровень: {level}!</b>\n<i>{_html.escape(str(state['rank']))}</i>"
         try:
             bot.send_message(uid, notify, parse_mode="HTML")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"notify student approve: {e}")
 
     elif action in ("hw_rv", "hw_rj"):
-        status  = "revision" if action == "hw_rv" else "rejected"
-        label   = "🔄 На доработку" if status == "revision" else "⛔ Отклонено"
+        status          = "revision" if action == "hw_rv" else "rejected"
+        label           = "🔄 На доработку" if status == "revision" else "⛔ Отклонено"
         default_comment = "Нужно доработать." if status == "revision" else "Не принято."
-        state["homework_status"] = status
+
+        # ── 1. Answer immediately ──
+        bot.answer_callback_query(call.id, label)
+
+        # ── 2. Update progress ──
+        state["homework_status"]  = status
         state["homework_comment"] = default_comment
         save_progress()
 
-        done_mark = f"{label} — @{call.from_user.username or call.from_user.first_name}"
+        # ── 3. Remove buttons + hint in group ──
+        hint = (
+            f"{label} — {_html.escape(admin_name)}\n\n"
+            f"<i>Для кастомного комментария:\n"
+            f"/{('revision' if status == 'revision' else 'reject')} "
+            f"{uid} {quest_id} ваш комментарий</i>"
+        )
         try:
-            bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
-            bot.answer_callback_query(call.id, label)
-            hint = (
-                f"{done_mark}\n\n"
-                f"<i>Чтобы добавить комментарий студенту:\n"
-                f"/{('revision' if status == 'revision' else 'reject')} {uid} {quest_id} ваш комментарий</i>"
-            )
-            bot.send_message(call.message.chat.id, hint, parse_mode="HTML",
-                             reply_to_message_id=call.message.message_id)
-        except Exception:
-            bot.answer_callback_query(call.id, label)
+            bot.edit_message_reply_markup(
+                call.message.chat.id, call.message.message_id, reply_markup=None)
+        except Exception as e:
+            logger.warning(f"edit_markup {status}: {e}")
+        try:
+            bot.send_message(call.message.chat.id, hint, parse_mode="HTML")
+        except Exception as e:
+            logger.warning(f"send hint {status}: {e}")
 
+        # ── 4. Notify student ──
         if status == "revision":
             msg = (
                 f"🔄 <b>Нужна доработка домашки</b>\n\n"
@@ -413,8 +432,8 @@ def handle_hw_callback(call: types.CallbackQuery):
             )
         try:
             bot.send_message(uid, msg, parse_mode="HTML")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"notify student {status}: {e}")
 
 
 def setup_webhook():
@@ -423,7 +442,10 @@ def setup_webhook():
         return
     try:
         bot.remove_webhook()
-        bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+        bot.set_webhook(
+            url=f"{WEBHOOK_URL}/webhook",
+            allowed_updates=["message", "callback_query", "channel_post", "edited_channel_post"],
+        )
         logger.info(f"Вебхук установлен: {WEBHOOK_URL}/webhook")
     except Exception as e:
         logger.error(f"Ошибка установки вебхука: {e}")
