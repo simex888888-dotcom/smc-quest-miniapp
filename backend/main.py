@@ -1,3 +1,4 @@
+import io
 import os
 import base64
 import logging
@@ -38,12 +39,18 @@ from bot import bot as telegram_bot, setup_webhook, process_update
 
 app = FastAPI(title="CHM Smart Money Academy API", version="4.0.0")
 
+_WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
+_ALLOWED_ORIGINS = list(filter(None, [
+    _WEBHOOK_URL,
+    "https://web.telegram.org",
+    "null",  # Telegram WebApp embedded webview sends Origin: null
+]))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # ── Static frontend ───────────────────────────────────────────────────────────
@@ -443,8 +450,9 @@ async def submit_task(req: QuestSubmitRequest):
     state["homework_status"] = "pending"
     state["homework_comment"] = ""
     if req.photo:
-        # Store only the first 500KB worth of base64 to prevent bloat
-        state["homework_photo"] = req.photo[:700_000]
+        # Cap at 1.5 MB decoded (~2 MB base64) to prevent JSON bloat
+        # Always keep the full data-URL prefix; truncate only excess payload
+        state["homework_photo"] = req.photo[:2_000_000]
     save_progress()
 
     # ── Notify all admins ──────────────────────────────────────────────────
@@ -459,12 +467,11 @@ async def submit_task(req: QuestSubmitRequest):
         f"🔄 Доработка: `/revision {req.user_id} {req.quest_id} комментарий`\n"
         f"⛔ Отклонить: `/reject {req.user_id} {req.quest_id} причина`"
     )
-    import io as _io
     for aid in _get_admin_ids():
         try:
             if req.photo:
                 photo_bytes = base64.b64decode(req.photo.split(",", 1)[-1])
-                buf = _io.BytesIO(photo_bytes)
+                buf = io.BytesIO(photo_bytes)
                 buf.name = "homework.jpg"
                 telegram_bot.send_photo(aid, buf, caption=admin_text, parse_mode="Markdown")
             else:

@@ -51,17 +51,21 @@ function getLevelInfo(xp) {
 }
 
 // ── SVG RANK ICONS ────────────────────────────────────────────────────────
+let _svgGradientCounter = 0;
 function getRankSVG(rankName) {
   const lvl = SMC_LEVELS.find(l => l.name === rankName) || SMC_LEVELS[0];
   const c = lvl.color;
+  // Use unique gradient IDs to prevent conflicts when multiple SVGs exist in the DOM
+  const uid = ++_svgGradientCounter;
   if (lvl.level === 7) {
+    const gid = `rg7_${uid}`;
     return `<svg viewBox="0 0 40 40" fill="none">
-      <defs><radialGradient id="rg7" cx="40%" cy="35%" r="60%">
+      <defs><radialGradient id="${gid}" cx="40%" cy="35%" r="60%">
         <stop offset="0%" stop-color="#ff8fa3"/><stop offset="100%" stop-color="#cc1133"/>
       </radialGradient></defs>
       <circle cx="20" cy="20" r="16" fill="#150508" stroke="${c}" stroke-width="2"/>
-      <circle cx="20" cy="20" r="12" fill="url(#rg7)" opacity="0.2"/>
-      <path d="M20 8L23 16H32L25 21L28 30L20 25L12 30L15 21L8 16H17Z" fill="url(#rg7)"/>
+      <circle cx="20" cy="20" r="12" fill="url(#${gid})" opacity="0.2"/>
+      <path d="M20 8L23 16H32L25 21L28 30L20 25L12 30L15 21L8 16H17Z" fill="url(#${gid})"/>
       <circle cx="20" cy="18" r="3" fill="white" opacity="0.4"/>
     </svg>`;
   }
@@ -129,6 +133,7 @@ function initCanvas() {
   }
 
   let offset = 0;
+  let rafId = null;
   function draw() {
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
@@ -159,9 +164,18 @@ function initCanvas() {
       ctx.shadowBlur = 0;
     });
     offset += 0.4;
-    requestAnimationFrame(draw);
+    rafId = requestAnimationFrame(draw);
   }
   draw();
+
+  // Pause animation when page is hidden to save battery (especially iOS)
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    } else if (!rafId) {
+      draw();
+    }
+  });
 }
 
 // ── ONBOARDING ────────────────────────────────────────────────────────────
@@ -1116,7 +1130,10 @@ function closeSendPreview() {
   closeModal("#sendPreviewModal");
 }
 
+let _isSubmitting = false;
 async function doSubmitTask() {
+  if (_isSubmitting) return;
+  _isSubmitting = true;
   const confirmBtn = document.getElementById("sendPreviewConfirmBtn");
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = "⏳ Отправляю..."; }
 
@@ -1137,6 +1154,7 @@ async function doSubmitTask() {
     closeSendPreview();
 
     if (data.ok) {
+      _isSubmitting = false;
       const statusEl = $("#taskStatus");
       statusEl.className = "task-status pending";
       statusEl.textContent = "⏳ Задание отправлено! Преподаватель проверит в течение 24 часов.";
@@ -1149,13 +1167,16 @@ async function doSubmitTask() {
       if (state.userState) state.userState.homework_status = "pending";
       loadQuests();
     } else if (data.error === "deadline_expired") {
+      _isSubmitting = false;
       closeModal("#taskModal");
       showDeadlineExpiredScreen();
     } else {
+      _isSubmitting = false;
       if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = "📤 Отправить"; }
       showToast(data.message || "Ошибка отправки", "error");
     }
   } catch (e) {
+    _isSubmitting = false;
     console.error("doSubmitTask:", e);
     if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = "📤 Отправить"; }
     showToast("Ошибка сети", "error");
@@ -1272,12 +1293,27 @@ function initChartLightbox() {
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────
+function _getToastContainer() {
+  let c = document.getElementById("_toastContainer");
+  if (!c) {
+    c = document.createElement("div");
+    c.id = "_toastContainer";
+    c.className = "toast-container";
+    document.body.appendChild(c);
+  }
+  return c;
+}
+
 function showToast(msg, type = "info") {
+  const container = _getToastContainer();
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
   toast.textContent = msg;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3500);
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("removing");
+    setTimeout(() => toast.remove(), 350);
+  }, 3200);
 }
 
 // ── DAILY BONUS DISPLAY ───────────────────────────────────────────────────
