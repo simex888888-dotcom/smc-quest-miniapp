@@ -314,6 +314,117 @@ def cmd_revision(message: types.Message):
     cmd_reject(message)
 
 
+def make_hw_keyboard(user_id: int, quest_id: str) -> types.InlineKeyboardMarkup:
+    """Inline buttons under homework notification."""
+    kb = types.InlineKeyboardMarkup(row_width=3)
+    kb.add(
+        types.InlineKeyboardButton("✅ Принять",   callback_data=f"hw_ap:{user_id}:{quest_id}"),
+        types.InlineKeyboardButton("🔄 Доработка", callback_data=f"hw_rv:{user_id}:{quest_id}"),
+        types.InlineKeyboardButton("⛔ Отклонить", callback_data=f"hw_rj:{user_id}:{quest_id}"),
+    )
+    return kb
+
+
+@bot.callback_query_handler(func=lambda c: c.data and c.data.startswith("hw_"))
+def handle_hw_callback(call: types.CallbackQuery):
+    from progress import get_user_state, save_progress, add_xp, set_module_deadline, DEFAULT_DEADLINE_HOURS
+    from quests import QUESTS
+    from lessons import MODULES
+
+    parts = call.data.split(":", 2)
+    if len(parts) != 3:
+        bot.answer_callback_query(call.id, "❌ Неверный формат"); return
+
+    action, uid_str, quest_id = parts
+    uid = int(uid_str)
+    state = get_user_state(uid)
+    quest = next((q for q in QUESTS if q["id"] == quest_id), None)
+
+    if action == "hw_ap":
+        if not quest:
+            bot.answer_callback_query(call.id, "❌ Квест не найден"); return
+        if quest_id not in state["completed_quests"]:
+            state["completed_quests"].append(quest_id)
+        state["active_quest"] = None
+        state["homework_status"] = "approved"
+        level, leveled_up = add_xp(uid, quest["xp_reward"])
+        advanced = False
+        idx = state["module_index"]
+        if quest_id.endswith("_boss"):
+            module_quests = [q["id"] for q in QUESTS if q["module_index"] == idx]
+            if all(qid in state["completed_quests"] for qid in module_quests):
+                if idx < len(MODULES) - 1:
+                    state["module_index"] += 1
+                    set_module_deadline(state, hours=DEFAULT_DEADLINE_HOURS)
+                    advanced = True
+        save_progress()
+
+        # Edit the channel message to mark as done
+        done_mark = f"✅ <b>Принято</b> — @{call.from_user.username or call.from_user.first_name}"
+        try:
+            bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+            bot.answer_callback_query(call.id, "✅ Принято!")
+            bot.send_message(call.message.chat.id, done_mark, parse_mode="HTML",
+                             reply_to_message_id=call.message.message_id)
+        except Exception:
+            bot.answer_callback_query(call.id, "✅ Принято!")
+
+        notify = f"✅ <b>Домашнее задание принято!</b>\n+{quest['xp_reward']} XP"
+        if advanced:
+            new_idx = state["module_index"]
+            new_mod = MODULES[new_idx]["title"] if new_idx < len(MODULES) else "Завершено"
+            notify += (
+                f"\n\n🎉 <b>Модуль {new_idx} разблокирован: {_html.escape(new_mod)}</b>\n"
+                f"⏰ Дедлайн: 72 часа\n\n"
+                "<i>Биткоин не ждал тебя в 2017. Не будет ждать и сейчас. Начинай.</i>"
+            )
+        if leveled_up:
+            notify += f"\n⬆️ <b>Новый уровень: {level}!</b>\n<i>{_html.escape(str(state['rank']))}</i>"
+        try:
+            bot.send_message(uid, notify, parse_mode="HTML")
+        except Exception:
+            pass
+
+    elif action in ("hw_rv", "hw_rj"):
+        status  = "revision" if action == "hw_rv" else "rejected"
+        label   = "🔄 На доработку" if status == "revision" else "⛔ Отклонено"
+        default_comment = "Нужно доработать." if status == "revision" else "Не принято."
+        state["homework_status"] = status
+        state["homework_comment"] = default_comment
+        save_progress()
+
+        done_mark = f"{label} — @{call.from_user.username or call.from_user.first_name}"
+        try:
+            bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+            bot.answer_callback_query(call.id, label)
+            hint = (
+                f"{done_mark}\n\n"
+                f"<i>Чтобы добавить комментарий студенту:\n"
+                f"/{('revision' if status == 'revision' else 'reject')} {uid} {quest_id} ваш комментарий</i>"
+            )
+            bot.send_message(call.message.chat.id, hint, parse_mode="HTML",
+                             reply_to_message_id=call.message.message_id)
+        except Exception:
+            bot.answer_callback_query(call.id, label)
+
+        if status == "revision":
+            msg = (
+                f"🔄 <b>Нужна доработка домашки</b>\n\n"
+                f"Фидбек:\n<i>{_html.escape(default_comment)}</i>\n\n"
+                "Исправь разметку и отправь скрин снова."
+            )
+        else:
+            msg = (
+                f"⛔ <b>Домашка не принята</b>\n\n"
+                f"Причина:\n<i>{_html.escape(default_comment)}</i>\n\n"
+                "Пересмотри уроки и сделай разметку заново."
+            )
+        try:
+            bot.send_message(uid, msg, parse_mode="HTML")
+        except Exception:
+            pass
+
+
 def setup_webhook():
     if not BOT_TOKEN or not WEBHOOK_URL:
         logger.warning("BOT_TOKEN или WEBHOOK_URL не установлены, вебхук не настроен")
