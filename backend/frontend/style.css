@@ -2910,7 +2910,7 @@ body::after {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px 24px;
+  padding: 0 16px 24px;
 }
 
 .pet-stats {
@@ -4051,16 +4051,107 @@ body.frenzy-mode .bg-overlay {
   position: relative;
   width: 100vw;
   margin-left: -16px;
-  height: 55vh;
+  height: 60vh;
+  min-height: 320px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 0;
+  margin-top: -8px;
   background: transparent;
   border-radius: 0;
   box-shadow: none;
-  overflow: visible;
+  overflow: hidden;
 }
+
+/* ── Cipher HUD — absolute overlay at top of stage ──────────────────── */
+.cipher-hud {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.cipher-hud-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.cipher-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cipher-stage-badge {
+  background: rgba(0,255,255,0.12);
+  border: 1px solid rgba(0,255,255,0.25);
+  color: #00FFFF;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 1px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.cipher-title {
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.btc-micro {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btc-micro .btc-dot {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+}
+
+.btc-micro #hbPrice {
+  font-family: 'JetBrains Mono', monospace;
+  color: rgba(255,255,255,0.55);
+}
+
+.btc-micro .btc-change { font-size: 10px; margin-left: 2px; }
+
+.oracle-btn {
+  background: rgba(139,92,246,0.15);
+  border: 1px solid rgba(139,92,246,0.35);
+  color: #A78BFA;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.2s, transform 0.15s;
+  pointer-events: auto;
+  font-family: var(--font-body);
+}
+
+.oracle-btn:active {
+  background: rgba(139,92,246,0.3);
+  transform: scale(0.96);
+}
+
+.oracle-eye { font-size: 14px; line-height: 1; }
 
 /* ── Ambient radial glow behind Cipher ───────────────────────────────── */
 .cipher-glow-bg {
@@ -4082,11 +4173,11 @@ body.frenzy-mode .bg-overlay {
   50%       { opacity: 1;   transform: translate(-50%,-50%) scale(1.15); }
 }
 
-/* ── Cipher organism: scale to fill 65% of stage height ─────────────── */
+/* ── Cipher organism: 30% larger — min(320px, 85vw) ─────────────────── */
 .pet-fox {
   position: relative;
-  width: auto;
-  height: 65%;
+  width: min(320px, 85vw);
+  height: min(320px, 85vw);
   aspect-ratio: 200 / 220;
   cursor: pointer;
   user-select: none;
