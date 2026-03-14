@@ -3795,3 +3795,140 @@ body.frenzy-mode .bg-overlay {
   0%   { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CIPHER LAB COHESION — unifies Уроки, Квесты, Рейтинг with Cipher theme
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Quiz feedback (correct-fb / wrong-fb) ─────────────────────────────── */
+.quiz-feedback.correct-fb {
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  color: #00d4ff;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
+}
+
+.quiz-feedback.wrong-fb {
+  background: rgba(255, 77, 109, 0.08);
+  border: 1px solid rgba(255, 77, 109, 0.3);
+  color: #fca5a5;
+  font-weight: 600;
+}
+
+/* ── Module cards — active gets cyan glow ──────────────────────────────── */
+.module-card {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.module-card.current {
+  border-color: rgba(0, 212, 255, 0.35) !important;
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.08), 0 0 0 1px rgba(0, 212, 255, 0.1);
+}
+
+.module-card:not(.locked):hover {
+  border-color: rgba(0, 212, 255, 0.25);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 212, 255, 0.08);
+}
+
+/* Active module number badge → cyan */
+.module-num-badge.active {
+  background: rgba(0, 212, 255, 0.12) !important;
+  border-color: rgba(0, 212, 255, 0.4) !important;
+  color: #00d4ff !important;
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
+}
+
+/* ── Lesson items — cyan accent on hover ───────────────────────────────── */
+.lesson-item:hover {
+  border-color: rgba(0, 212, 255, 0.35) !important;
+  background: rgba(0, 212, 255, 0.04) !important;
+  transform: translateX(3px);
+}
+
+/* Completed lesson item subtle green glow */
+.lesson-item.lesson-done {
+  border-color: rgba(0, 232, 122, 0.2);
+}
+
+/* ── Quest cards — cyan glow on quiz type hover ─────────────────────────── */
+.quest-card.quiz:hover {
+  border-color: rgba(0, 212, 255, 0.45) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 212, 255, 0.1);
+}
+
+.quest-card.task:hover {
+  border-color: rgba(168, 85, 247, 0.45) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(168, 85, 247, 0.1);
+}
+
+/* ── Quest XP reward badge ─────────────────────────────────────────────── */
+.quest-xp {
+  font-size: 11px;
+  color: #00d4ff;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* ── Quest type badge FIELD TEST — already cyan, reinforce ──────────────── */
+.quest-type-quiz {
+  letter-spacing: 0.06em;
+  font-size: 9px;
+}
+
+/* ── Quest stat header glow line ────────────────────────────────────────── */
+.quests-header {
+  border-bottom-color: rgba(0, 212, 255, 0.15);
+}
+
+.q-stat-val {
+  color: #00d4ff;
+}
+
+/* ── Daily bonus modal — lab theme ──────────────────────────────────────── */
+.streak-info {
+  color: #00d4ff;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* ── Empty state quests ─────────────────────────────────────────────────── */
+.es-title {
+  background: linear-gradient(135deg, #00d4ff, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Tab nav — active pet tab uses cipher cyan ──────────────────────────── */
+.tab[data-tab="pet"].active {
+  color: #00d4ff;
+}
+
+/* ── Progress bar cipher tint ───────────────────────────────────────────── */
+#progressBar {
+  background: linear-gradient(90deg, #00d4ff, #a855f7) !important;
+}
+
+/* ── Lesson modal tag — RESEARCH PROTOCOL style ─────────────────────────── */
+.lesson-tag {
+  background: rgba(0, 212, 255, 0.1);
+  color: #00d4ff;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* ── Result modal icons cipher-colored ─────────────────────────────────── */
+.result-icon {
+  font-size: 52px;
+  display: block;
+  text-align: center;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 16px rgba(0, 212, 255, 0.5));
+}
