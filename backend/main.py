@@ -7,7 +7,7 @@ import logging
 import random
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -34,6 +34,9 @@ from progress import (
     get_deadline_hours_remaining, apply_penalty_extension,
     MODULE_PENALTIES, MODULE_FULL_REPURCHASE,
     BADGE_DEFS, SMC_LEVELS, get_level_and_rank,
+    # Pet system
+    get_pet_state, pet_register_tap, apply_lesson_pet_effect, add_pet_coins,
+    PET_LEVEL_XP,
 )
 from lessons import LESSONS, MODULES
 from quests import QUESTS, QUIZZES
@@ -116,6 +119,10 @@ class PenaltyPaymentRequest(BaseModel):
     user_id: int
     module_index: int
     payment_type: str = "penalty"   # "penalty" or "repurchase"
+
+
+class PetTapRequest(BaseModel):
+    user_id: int
 
 
 # ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -478,6 +485,18 @@ async def quiz_answer(req: QuizAnswerRequest):
                     award_badge(req.user_id, "first_blood")
 
                 advanced = try_advance_module(req.user_id)
+
+                # Pet effect: boost fox stats based on quiz topic
+                quiz_ref = quest.get("quiz_ref", "")
+                lesson_key = _QUIZ_REF_TO_LESSON.get(quiz_ref, "")
+                pet_effect = {}
+                if lesson_key:
+                    try:
+                        pet_effect = apply_lesson_pet_effect(req.user_id, lesson_key, round(score * 100))
+                    except Exception as pe:
+                        logger.warning(f"Pet effect error: {pe}")
+
+                save_progress()
                 # add_xp, award_badge, try_advance_module already save;
                 # no extra save_progress() needed here
                 return {
@@ -487,6 +506,7 @@ async def quiz_answer(req: QuizAnswerRequest):
                     "new_level": level, "leveled_up": leveled_up,
                     "module_advanced": advanced,
                     "rank": get_user_state(req.user_id)["rank"],
+                    "pet_effect": pet_effect,
                 }
         else:
             state["quiz_state"] = None
@@ -729,6 +749,13 @@ async def admin_approve(req: AdminApproveRequest):
         if all_done:
             award_badge(req.user_id, "chm_legend")
 
+    # Give pet coins for approved homework
+    try:
+        coin_reward = 50 if req.quest_id.endswith("_boss") else 30
+        add_pet_coins(req.user_id, coin_reward)
+    except Exception as ce:
+        logger.warning(f"Pet coins error on approval: {ce}")
+
     save_progress()
     return {"ok": True, "new_level": level, "leveled_up": leveled_up, "module_advanced": advanced}
 
@@ -813,3 +840,51 @@ async def webhook(request: Request):
     return {"ok": True}
 
 
+# ── PET SYSTEM ────────────────────────────────────────────────────────────────
+
+# Map quiz_ref → lesson_key for pet effects on quiz completion
+_QUIZ_REF_TO_LESSON: Dict[str, str] = {
+    "basics_quiz":         "market_structure",
+    "liquidity_quiz":      "liquidity",
+    "poi_quiz":            "order_blocks",
+    "fvg_quiz":            "fvg",
+    "manipulation_quiz":   "inducement",
+    "advanced_blocks_quiz":"breaker_blocks",
+    "advanced_models_quiz":"ote",
+    "risk_quiz":           "risk_management",
+    "strategies_quiz":     "market_maker_model",
+}
+
+
+@app.get("/api/pet/{user_id}")
+async def get_pet(user_id: int):
+    pet = get_pet_state(user_id)
+    return {
+        "ok": True,
+        "hunger":           round(pet["hunger"]),
+        "happiness":        round(pet["happiness"]),
+        "health":           round(pet["health"]),
+        "pet_xp":           pet["pet_xp"],
+        "pet_level":        pet["pet_level"],
+        "coins":            pet["coins"],
+        "visual_state":     pet["visual_state"],
+        "total_taps":       pet["total_taps"],
+        "next_level_xp":    pet["next_level_xp"],
+        "current_level_xp": pet["current_level_xp"],
+    }
+
+
+@app.post("/api/pet/tap")
+async def pet_tap(req: PetTapRequest):
+    result = pet_register_tap(req.user_id)
+    return {"ok": True, **result}
+
+
+@app.on_event("startup")
+async def on_startup():
+    load_progress()
+    logger.info(f"Progress loaded: {len(user_progress)} users")
+    if os.getenv("WEBHOOK_URL"):
+        setup_webhook()
+    else:
+        logger.info("WEBHOOK_URL not set — webhook not configured (polling mode)")

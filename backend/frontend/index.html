@@ -256,7 +256,7 @@
     </div>
 
     <!-- TABS -->
-    <nav class="tabs">
+    <nav class="tabs tabs--4">
       <button class="tab active" data-tab="lessons" onclick="switchTab('lessons')">
         <svg class="tab-icon" viewBox="0 0 20 20" fill="none">
           <rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
@@ -279,6 +279,21 @@
         </svg>
         Рейтинг
       </button>
+      <button class="tab" data-tab="pet" onclick="switchTab('pet')">
+        <svg class="tab-icon" viewBox="0 0 20 20" fill="none">
+          <!-- Fox ears -->
+          <path d="M5 8L3 3L7.5 6" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
+          <path d="M15 8L17 3L12.5 6" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
+          <!-- Fox face -->
+          <ellipse cx="10" cy="11" rx="6" ry="5" stroke="currentColor" stroke-width="1.4"/>
+          <!-- Fox snout -->
+          <ellipse cx="10" cy="13" rx="2.5" ry="1.5" stroke="currentColor" stroke-width="1.2" opacity="0.7"/>
+          <!-- Eyes -->
+          <circle cx="7.5" cy="10" r="0.9" fill="currentColor"/>
+          <circle cx="12.5" cy="10" r="0.9" fill="currentColor"/>
+        </svg>
+        Питомец
+      </button>
     </nav>
 
     <!-- LESSONS TAB -->
@@ -296,6 +311,144 @@
     <div id="tab-leaderboard" class="tab-content">
       <div id="leaderboardPodium" class="lb-podium"></div>
       <div id="leaderboardList"></div>
+    </div>
+
+    <!-- PET TAB -->
+    <div id="tab-pet" class="tab-content">
+      <div class="pet-screen">
+
+        <!-- Fox stage -->
+        <div class="pet-stage" id="petStage">
+          <div class="pet-aura" id="petAura"></div>
+          <div class="pet-fox" id="petFox" onclick="onPetTap(event)">
+            <!-- Fox SVG inline -->
+            <svg class="fox-svg" id="foxSvg" viewBox="0 0 160 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="foxBodyGrad" cx="50%" cy="40%" r="55%">
+                  <stop offset="0%" stop-color="#ff8c42"/>
+                  <stop offset="100%" stop-color="#d4580a"/>
+                </radialGradient>
+                <radialGradient id="foxBellyGrad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#ffd4a3"/>
+                  <stop offset="100%" stop-color="#ffb870"/>
+                </radialGradient>
+                <radialGradient id="foxEarGrad" cx="40%" cy="30%" r="60%">
+                  <stop offset="0%" stop-color="#ff6b1a"/>
+                  <stop offset="100%" stop-color="#c44a00"/>
+                </radialGradient>
+              </defs>
+              <!-- Tail -->
+              <path class="fox-tail" d="M105 130 Q145 115 148 90 Q152 65 130 60 Q118 58 115 75 Q112 90 118 100 Q125 112 115 125Z" fill="url(#foxBodyGrad)" opacity="0.9"/>
+              <path d="M148 90 Q150 70 138 62 Q130 58 125 65 Q132 68 134 80 Q136 92 130 102Z" fill="#fff8f0" opacity="0.7"/>
+              <!-- Body -->
+              <ellipse class="fox-body" cx="80" cy="130" rx="38" ry="42" fill="url(#foxBodyGrad)"/>
+              <!-- Belly -->
+              <ellipse cx="80" cy="138" rx="22" ry="26" fill="url(#foxBellyGrad)" opacity="0.9"/>
+              <!-- Left ear -->
+              <path class="fox-ear-l" d="M52 68L42 32L70 55Z" fill="url(#foxEarGrad)"/>
+              <path d="M54 65L47 40L67 56Z" fill="#ff9a6c" opacity="0.7"/>
+              <!-- Right ear -->
+              <path class="fox-ear-r" d="M108 68L118 32L90 55Z" fill="url(#foxEarGrad)"/>
+              <path d="M106 65L113 40L93 56Z" fill="#ff9a6c" opacity="0.7"/>
+              <!-- Head -->
+              <ellipse class="fox-head" cx="80" cy="78" rx="34" ry="30" fill="url(#foxBodyGrad)"/>
+              <!-- Face mask (white snout area) -->
+              <ellipse cx="80" cy="88" rx="18" ry="14" fill="#fff8f0"/>
+              <!-- Eyes -->
+              <g class="fox-eyes">
+                <ellipse cx="66" cy="72" rx="7" ry="8" fill="#1a1215"/>
+                <ellipse cx="66" cy="72" rx="3" ry="3.5" fill="#fff" opacity="0.9"/>
+                <circle cx="67.5" cy="70.5" r="1.5" fill="#fff"/>
+                <ellipse cx="94" cy="72" rx="7" ry="8" fill="#1a1215"/>
+                <ellipse cx="94" cy="72" rx="3" ry="3.5" fill="#fff" opacity="0.9"/>
+                <circle cx="95.5" cy="70.5" r="1.5" fill="#fff"/>
+              </g>
+              <!-- Happy eyes (hidden by default) -->
+              <g class="fox-eyes-happy" style="display:none">
+                <path d="M60 72 Q66 66 72 72" stroke="#1a1215" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                <path d="M88 72 Q94 66 100 72" stroke="#1a1215" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+              </g>
+              <!-- Nose -->
+              <ellipse cx="80" cy="88" rx="4" ry="3" fill="#2d1f25"/>
+              <!-- Mouth -->
+              <path class="fox-mouth" d="M73 94 Q80 100 87 94" stroke="#2d1f25" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+              <!-- Whiskers -->
+              <line x1="48" y1="88" x2="63" y2="86" stroke="#d4580a" stroke-width="1" opacity="0.6"/>
+              <line x1="48" y1="92" x2="63" y2="91" stroke="#d4580a" stroke-width="1" opacity="0.6"/>
+              <line x1="97" y1="86" x2="112" y2="88" stroke="#d4580a" stroke-width="1" opacity="0.6"/>
+              <line x1="97" y1="91" x2="112" y2="92" stroke="#d4580a" stroke-width="1" opacity="0.6"/>
+              <!-- Paws -->
+              <ellipse class="fox-paw-l" cx="55" cy="168" rx="12" ry="8" fill="url(#foxBodyGrad)"/>
+              <ellipse class="fox-paw-r" cx="105" cy="168" rx="12" ry="8" fill="url(#foxBodyGrad)"/>
+              <!-- Sick overlay (hidden) -->
+              <g class="fox-sick-overlay" style="display:none" opacity="0.5">
+                <circle cx="66" cy="72" r="10" fill="#7ecf6a"/>
+                <circle cx="94" cy="72" r="10" fill="#7ecf6a"/>
+                <text x="66" y="76" text-anchor="middle" font-size="10" fill="#fff">x</text>
+                <text x="94" y="76" text-anchor="middle" font-size="10" fill="#fff">x</text>
+              </g>
+            </svg>
+            <!-- Floating tap rewards container -->
+            <div class="pet-float-rewards" id="petFloatRewards"></div>
+          </div>
+          <!-- Combo badge -->
+          <div class="pet-combo" id="petCombo" style="display:none">
+            <span id="petComboText">x2 COMBO!</span>
+          </div>
+        </div>
+
+        <!-- Stat bars -->
+        <div class="pet-stats">
+          <div class="pet-stat">
+            <div class="pet-stat-header">
+              <span class="pet-stat-icon">🍖</span>
+              <span class="pet-stat-label">Сытость</span>
+              <span class="pet-stat-val" id="petHunger">80</span>
+            </div>
+            <div class="pet-stat-bar"><div class="pet-stat-fill pet-stat-fill--hunger" id="petHungerBar" style="width:80%"></div></div>
+          </div>
+          <div class="pet-stat">
+            <div class="pet-stat-header">
+              <span class="pet-stat-icon">😊</span>
+              <span class="pet-stat-label">Счастье</span>
+              <span class="pet-stat-val" id="petHappiness">80</span>
+            </div>
+            <div class="pet-stat-bar"><div class="pet-stat-fill pet-stat-fill--happiness" id="petHappinessBar" style="width:80%"></div></div>
+          </div>
+          <div class="pet-stat">
+            <div class="pet-stat-header">
+              <span class="pet-stat-icon">❤️</span>
+              <span class="pet-stat-label">Здоровье</span>
+              <span class="pet-stat-val" id="petHealth">100</span>
+            </div>
+            <div class="pet-stat-bar"><div class="pet-stat-fill pet-stat-fill--health" id="petHealthBar" style="width:100%"></div></div>
+          </div>
+        </div>
+
+        <!-- Pet level & XP -->
+        <div class="pet-level-card">
+          <div class="pet-level-left">
+            <div class="pet-level-badge" id="petLevelBadge">Ур. 1</div>
+            <div class="pet-xp-info">
+              <span id="petXpCurrent">0</span> / <span id="petXpNext">50</span> XP
+            </div>
+          </div>
+          <div class="pet-xp-bar-wrap">
+            <div class="pet-xp-bar"><div class="pet-xp-fill" id="petXpFill" style="width:0%"></div></div>
+          </div>
+          <div class="pet-coins-display">
+            <span class="pet-coin-icon">🪙</span>
+            <span id="petCoins">0</span>
+          </div>
+        </div>
+
+        <!-- Hint -->
+        <div class="pet-hint" id="petHint">
+          Тапай лисичку чтобы она была счастлива! 🦊<br/>
+          <small>Проходи уроки — кормишь питомца</small>
+        </div>
+
+      </div>
     </div>
 
   </div>

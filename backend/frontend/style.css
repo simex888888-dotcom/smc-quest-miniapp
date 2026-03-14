@@ -2776,3 +2776,370 @@ img { max-width: 100%; display: block; }
 }
 
 .deb-btn:active { opacity: 0.85; transform: scale(0.97); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PET SYSTEM — SMC Fox companion
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* 4-tab grid */
+.tabs--4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ── Pet screen layout ─────────────────────────────────────────────────────── */
+.pet-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px 24px;
+}
+
+/* ── Fox stage ──────────────────────────────────────────────────────────────── */
+.pet-stage {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.pet-aura {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 140, 66, 0.18) 0%, transparent 70%);
+  animation: petAuraPulse 3s ease-in-out infinite;
+}
+
+@keyframes petAuraPulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.6; }
+  50%       { transform: scale(1.1); opacity: 1; }
+}
+
+.pet-fox {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  animation: foxIdle 3s ease-in-out infinite;
+  transform-origin: center bottom;
+  filter: drop-shadow(0 8px 24px rgba(255,140,66,0.35));
+  transition: filter 0.4s;
+}
+
+.fox-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Fox visual state animations ─────────────────────────────────────────────── */
+
+/* idle: gentle breathing bob */
+@keyframes foxIdle {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%       { transform: translateY(-6px) scaleY(1.02); }
+}
+
+/* happy: light bounce */
+@keyframes foxHappy {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25%       { transform: translateY(-10px) rotate(-3deg); }
+  75%       { transform: translateY(-6px) rotate(3deg); }
+}
+
+/* excited: squish & spring */
+@keyframes foxExcited {
+  0%   { transform: scaleX(1)   scaleY(1); }
+  20%  { transform: scaleX(1.15) scaleY(0.85); }
+  40%  { transform: scaleX(0.9)  scaleY(1.12); }
+  60%  { transform: scaleX(1.08) scaleY(0.94); }
+  80%  { transform: scaleX(0.97) scaleY(1.04); }
+  100% { transform: scaleX(1)   scaleY(1); }
+}
+
+/* hungry: slow sad droop */
+@keyframes foxHungry {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  40%       { transform: translateY(3px) rotate(-1deg); }
+  60%       { transform: translateY(3px) rotate(1deg); }
+}
+
+/* sick: grey-ish shake */
+@keyframes foxSick {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20%       { transform: translateX(-4px) rotate(-2deg); }
+  40%       { transform: translateX(4px)  rotate(2deg); }
+  60%       { transform: translateX(-3px) rotate(-1deg); }
+  80%       { transform: translateX(3px)  rotate(1deg); }
+}
+
+/* tap squish: quick scale burst */
+@keyframes foxTapSquish {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.9) scaleY(0.88); }
+  60%  { transform: scale(1.08) scaleY(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* per visual-state classes applied by JS */
+.pet-fox--idle    { animation: foxIdle    3s ease-in-out infinite; }
+.pet-fox--happy   { animation: foxHappy   2s ease-in-out infinite; }
+.pet-fox--excited { animation: foxExcited 0.7s ease-in-out infinite; }
+.pet-fox--hungry  { animation: foxHungry  4s ease-in-out infinite; }
+.pet-fox--sick    {
+  animation: foxSick 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 8px 24px rgba(120,200,80,0.3)) saturate(0.4);
+}
+
+/* tap animation class (added/removed by JS) */
+.pet-fox--tapping { animation: foxTapSquish 0.3s ease-out forwards; }
+
+/* sick eyes overlay */
+.pet-fox--sick .fox-sick-overlay { display: block !important; }
+.pet-fox--sick .fox-eyes         { display: none; }
+
+/* happy eyes swap */
+.pet-fox--happy .fox-eyes-happy,
+.pet-fox--excited .fox-eyes-happy { display: block !important; }
+.pet-fox--happy .fox-eyes,
+.pet-fox--excited .fox-eyes       { display: none; }
+
+/* hungry mouth droop */
+.pet-fox--hungry .fox-mouth { d: path("M73 96 Q80 92 87 96"); }
+
+/* ── Floating tap reward numbers ─────────────────────────────────────────────── */
+.pet-float-rewards {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+
+.float-reward {
+  position: absolute;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fbbf24;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  pointer-events: none;
+  animation: floatUp 0.9s ease-out forwards;
+  white-space: nowrap;
+}
+
+.float-reward--combo { color: #ff6b35; font-size: 18px; }
+.float-reward--coin  { color: #ffd700; }
+
+@keyframes floatUp {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  60%  { opacity: 1; transform: translateY(-45px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-70px) scale(0.8); }
+}
+
+/* ── Combo badge ──────────────────────────────────────────────────────────────── */
+.pet-combo {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: linear-gradient(135deg, #ff6b35, #ff3366);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 4px 9px;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(255,51,102,0.5);
+  animation: comboPop 0.25s ease-out;
+  z-index: 10;
+}
+
+@keyframes comboPop {
+  0%   { transform: scale(0.5); }
+  70%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* ── Stat bars ───────────────────────────────────────────────────────────────── */
+.pet-stats {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pet-stat {}
+
+.pet-stat-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.pet-stat-icon { font-size: 16px; }
+
+.pet-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  flex: 1;
+}
+
+.pet-stat-val {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text);
+  min-width: 28px;
+  text-align: right;
+}
+
+.pet-stat-bar {
+  height: 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pet-stat-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pet-stat-fill--hunger {
+  background: linear-gradient(90deg, #ff9a44, #ff6b1a);
+  box-shadow: 0 0 8px rgba(255,107,26,0.5);
+}
+
+.pet-stat-fill--happiness {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  box-shadow: 0 0 8px rgba(251,191,36,0.4);
+}
+
+.pet-stat-fill--health {
+  background: linear-gradient(90deg, #10b981, #34d399);
+  box-shadow: 0 0 8px rgba(52,211,153,0.4);
+}
+
+/* Low stat warning pulse */
+.pet-stat-fill--low {
+  animation: statLowPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes statLowPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ── Pet level card ───────────────────────────────────────────────────────────── */
+.pet-level-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pet-level-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 70px;
+}
+
+.pet-level-badge {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ff8c42;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.pet-xp-info {
+  font-size: 10px;
+  color: var(--text2);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.pet-xp-bar-wrap { flex: 1; }
+
+.pet-xp-bar {
+  height: 10px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.pet-xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff8c42, #fbbf24);
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(255,140,66,0.5);
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pet-coins-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 54px;
+  justify-content: flex-end;
+}
+
+.pet-coin-icon { font-size: 18px; }
+
+.pet-coins-display span {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fbbf24;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Hint text ───────────────────────────────────────────────────────────────── */
+.pet-hint {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.pet-hint small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ── Level-up flash (added by JS, removed after) ──────────────────────────────── */
+.pet-level-up-flash {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,140,66,0.25) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 9999;
+  animation: levelUpFlash 0.8s ease-out forwards;
+}
+
+@keyframes levelUpFlash {
+  0%   { opacity: 0; }
+  30%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Coin burst particles ─────────────────────────────────────────────────────── */
+.coin-particle {
+  position: fixed;
+  font-size: 20px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: coinBurst 0.9s ease-out forwards;
+}
+
+@keyframes coinBurst {
+  0%   { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: var(--tx, translate(40px,-80px)) scale(0.5) rotate(180deg); }
+}

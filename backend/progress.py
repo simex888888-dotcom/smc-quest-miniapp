@@ -393,3 +393,234 @@ def get_leaderboard(limit: int = 10) -> List[Dict[str, Any]]:
         for uid, st in user_progress.items()
     ]
     return sorted(entries, key=lambda x: x["xp"], reverse=True)[:limit]
+
+
+load_progress()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ── PET SYSTEM (SMC Fox companion) ───────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+
+# 20 pet levels — XP thresholds
+PET_LEVEL_XP: List[int] = [
+    0, 50, 120, 220, 350, 510, 700, 920, 1170, 1450,
+    1760, 2100, 2470, 2870, 3300, 3760, 4250, 4770, 5320, 5900,
+]
+
+# Lesson completion → pet stat bonuses
+LESSON_PET_EFFECTS: Dict[str, Dict[str, int]] = {
+    # Module 1: Basics
+    "what_is_smc":        {"happiness": 10, "hunger": 5},
+    "timeframes":         {"happiness": 8,  "hunger": 5},
+    "market_structure":   {"hunger": 15,    "health": 5},
+    # Module 2: Liquidity
+    "liquidity":          {"happiness": 15, "pet_xp": 10},
+    "liquidity_pools":    {"happiness": 12, "hunger": 8},
+    # Module 3: OB & FVG
+    "order_blocks":       {"hunger": 20,    "health": 5,  "pet_xp": 15},
+    "fvg":                {"health": 15,    "happiness": 8},
+    # Module 4: Inducement
+    "inducement":         {"happiness": 10, "hunger": 10},
+    "stop_hunting":       {"health": 10,    "pet_xp": 10},
+    # Module 5: Breakers
+    "breaker_blocks":     {"hunger": 15,    "happiness": 10},
+    "mitigation_blocks":  {"health": 12,    "pet_xp": 10},
+    # Module 6: Entries
+    "ote":                {"happiness": 12, "hunger": 12, "pet_xp": 15},
+    "premium_discount":   {"health": 10,    "hunger": 10},
+    # Module 7: Sessions
+    "killzones":          {"happiness": 15, "pet_xp": 12},
+    "amd_model":          {"hunger": 18,    "health": 8},
+    "power_of_three":     {"happiness": 15, "pet_xp": 15},
+    # Module 8: Risk
+    "risk_management":    {"health": 20,    "happiness": 10, "pet_xp": 20},
+    "psychology":         {"happiness": 20, "health": 15},
+    # Module 9: Advanced
+    "market_maker_model": {"hunger": 20,    "health": 10, "pet_xp": 25},
+    "ict_2022_model":     {"happiness": 18, "pet_xp": 20},
+    "live_trade_btc":     {"hunger": 15,    "happiness": 15, "pet_xp": 20},
+    "live_trade_eth":     {"health": 15,    "happiness": 12, "pet_xp": 20},
+    # Module 10: Exam / Certification
+    "session_sweep_model":{"happiness": 20, "pet_xp": 25},
+    "exam_overview":      {"hunger": 15,    "health": 10},
+    "certification":      {"happiness": 30, "health": 20, "pet_xp": 50, "coins": 100},
+}
+
+_PET_DECAY_PER_HOUR = {"hunger": 3.0, "happiness": 2.5, "health": 1.0}
+_COMBO_WINDOW_SECS = 5    # consecutive taps within this window count as combo
+_MAX_COMBO = 10
+
+
+def _default_pet() -> Dict[str, Any]:
+    now = datetime.utcnow().isoformat()
+    return {
+        "hunger":          80,
+        "happiness":       80,
+        "health":          100,
+        "pet_xp":          0,
+        "pet_level":       1,
+        "coins":           0,
+        "last_updated":    now,
+        "last_tap":        None,
+        "tap_combo":       0,
+        "tap_combo_start": None,
+        "total_taps":      0,
+    }
+
+
+def decay_pet_stats(pet: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply time-based stat decay since last_updated. Modifies in-place."""
+    now = datetime.utcnow()
+    last = pet.get("last_updated")
+    if last:
+        try:
+            delta_hours = (now - datetime.fromisoformat(last)).total_seconds() / 3600
+            for stat, rate in _PET_DECAY_PER_HOUR.items():
+                pet[stat] = max(0.0, pet.get(stat, 0) - rate * delta_hours)
+        except Exception:
+            pass
+    pet["last_updated"] = now.isoformat()
+    return pet
+
+
+def _get_pet_level(pet_xp: int) -> int:
+    level = 1
+    for i, threshold in enumerate(PET_LEVEL_XP):
+        if pet_xp >= threshold:
+            level = i + 1
+    return min(level, 20)
+
+
+def get_pet_visual_state(pet: Dict[str, Any]) -> str:
+    """Returns one of: idle | happy | hungry | sick | excited"""
+    hp  = pet.get("health",    100)
+    h   = pet.get("hunger",    100)
+    hap = pet.get("happiness", 100)
+    if hp < 30:
+        return "sick"
+    if h < 25:
+        return "hungry"
+    if hap > 80 and h > 70:
+        return "excited"
+    if hap > 55:
+        return "happy"
+    return "idle"
+
+
+def get_pet_state(user_id: int) -> Dict[str, Any]:
+    """Get full pet state with decay applied. Creates default pet if missing."""
+    state = get_user_state(user_id)
+    if "pet" not in state:
+        state["pet"] = _default_pet()
+    pet = state["pet"]
+    for k, v in _default_pet().items():
+        pet.setdefault(k, v)
+    decay_pet_stats(pet)
+    pet["pet_level"] = _get_pet_level(pet.get("pet_xp", 0))
+    pet["visual_state"] = get_pet_visual_state(pet)
+    lvl = pet["pet_level"]
+    pet["next_level_xp"] = PET_LEVEL_XP[lvl] if lvl < 20 else None
+    pet["current_level_xp"] = PET_LEVEL_XP[lvl - 1]
+    save_progress()
+    return pet
+
+
+def pet_register_tap(user_id: int) -> Dict[str, Any]:
+    """Register a pet tap. Returns tap result dict."""
+    pet = get_pet_state(user_id)
+    now = datetime.utcnow()
+
+    last_tap = pet.get("tap_combo_start")
+    combo_active = False
+    if last_tap:
+        try:
+            elapsed = (now - datetime.fromisoformat(last_tap)).total_seconds()
+            combo_active = elapsed <= _COMBO_WINDOW_SECS
+        except Exception:
+            pass
+
+    if combo_active:
+        pet["tap_combo"] = min(pet.get("tap_combo", 0) + 1, _MAX_COMBO)
+    else:
+        pet["tap_combo"] = 1
+        pet["tap_combo_start"] = now.isoformat()
+
+    pet["last_tap"] = now.isoformat()
+    pet["total_taps"] = pet.get("total_taps", 0) + 1
+
+    combo = pet["tap_combo"]
+    xp_gain = max(1, round(1 + (combo - 1) * 0.5))
+
+    pet["happiness"] = min(100, pet.get("happiness", 0) + 2)
+    pet["pet_xp"]    = pet.get("pet_xp", 0) + xp_gain
+
+    old_level = pet.get("pet_level", 1)
+    new_level = _get_pet_level(pet["pet_xp"])
+    pet["pet_level"] = new_level
+    level_up = new_level > old_level
+
+    coins_earned = 0
+    total = pet["total_taps"]
+    milestone_map = {100: 10, 500: 25, 1000: 50, 5000: 100}
+    if total in milestone_map:
+        coins_earned = milestone_map[total]
+        pet["coins"] = pet.get("coins", 0) + coins_earned
+
+    pet["visual_state"] = get_pet_visual_state(pet)
+    save_progress()
+
+    lvl = pet["pet_level"]
+    return {
+        "xp_gained":       xp_gain,
+        "combo":           combo,
+        "pet_xp":          pet["pet_xp"],
+        "pet_level":       new_level,
+        "level_up":        level_up,
+        "coins_earned":    coins_earned,
+        "visual_state":    pet["visual_state"],
+        "hunger":          round(pet["hunger"]),
+        "happiness":       round(pet["happiness"]),
+        "health":          round(pet["health"]),
+        "next_level_xp":   PET_LEVEL_XP[lvl] if lvl < 20 else None,
+        "current_level_xp": PET_LEVEL_XP[lvl - 1],
+    }
+
+
+def apply_lesson_pet_effect(user_id: int, lesson_key: str, score_pct: float = 100.0) -> Dict[str, Any]:
+    """Apply pet bonuses when a quiz/lesson is completed."""
+    effects = LESSON_PET_EFFECTS.get(lesson_key, {"happiness": 5})
+    pet = get_pet_state(user_id)
+    applied: Dict[str, int] = {}
+
+    for stat, val in effects.items():
+        if stat == "coins":
+            pet["coins"] = pet.get("coins", 0) + val
+            applied["coins"] = val
+        elif stat == "pet_xp":
+            bonus = max(1, round(val * score_pct / 100))
+            pet["pet_xp"] = pet.get("pet_xp", 0) + bonus
+            applied["pet_xp"] = bonus
+        elif stat in ("hunger", "happiness", "health"):
+            pet[stat] = min(100, pet.get(stat, 0) + val)
+            applied[stat] = val
+
+    old_level = pet.get("pet_level", 1)
+    pet["pet_level"] = _get_pet_level(pet["pet_xp"])
+    pet["visual_state"] = get_pet_visual_state(pet)
+    save_progress()
+
+    return {
+        "applied":      applied,
+        "pet_level":    pet["pet_level"],
+        "level_up":     pet["pet_level"] > old_level,
+        "visual_state": pet["visual_state"],
+    }
+
+
+def add_pet_coins(user_id: int, amount: int) -> int:
+    """Add coins to pet wallet. Returns new total."""
+    pet = get_pet_state(user_id)
+    pet["coins"] = pet.get("coins", 0) + amount
+    save_progress()
+    return pet["coins"]
