@@ -1,3 +1,4 @@
+import asyncio
 import html as _html
 import io
 import os
@@ -717,7 +718,8 @@ async def get_homework_photo(user_id: int, admin_id: int):
 async def webhook(request: Request):
     try:
         data = await request.json()
-        process_update(data)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, process_update, data)
     except Exception as e:
         logger.error(f"Webhook error: {e}")
     return {"ok": True}

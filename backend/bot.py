@@ -18,7 +18,7 @@ def _admin_ids() -> set:
 def is_admin(uid: int) -> bool:
     return uid in _admin_ids()
 
-bot = telebot.TeleBot(BOT_TOKEN, parse_mode="Markdown")
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode="Markdown", threaded=False)
 
 MINIAPP_URL = f"{WEBHOOK_URL}/static/index.html" if WEBHOOK_URL else ""
 
@@ -319,13 +319,30 @@ def make_hw_keyboard(user_id: int, quest_id: str) -> types.InlineKeyboardMarkup:
 
 @bot.callback_query_handler(func=lambda c: c.data and c.data.startswith("hw_"))
 def handle_hw_callback(call: types.CallbackQuery):
+    logger.info(f"HW callback received: {call.data!r} from uid={call.from_user.id}")
+    try:
+        _do_hw_callback(call)
+    except Exception as exc:
+        logger.error(f"HW callback unhandled error: {exc}", exc_info=True)
+        try:
+            bot.answer_callback_query(call.id, "❌ Ошибка сервера", show_alert=True)
+        except Exception:
+            pass
+
+
+def _do_hw_callback(call: types.CallbackQuery):
     from progress import get_user_state, save_progress, add_xp, set_module_deadline, DEFAULT_DEADLINE_HOURS
     from quests import QUESTS
     from lessons import MODULES
 
+    if not call.message:
+        bot.answer_callback_query(call.id, "❌ Нет данных сообщения", show_alert=True)
+        return
+
     parts = call.data.split(":", 2)
     if len(parts) != 3:
-        bot.answer_callback_query(call.id, "❌ Неверный формат"); return
+        bot.answer_callback_query(call.id, "❌ Неверный формат", show_alert=True)
+        return
 
     action, uid_str, quest_id = parts
     uid = int(uid_str)
