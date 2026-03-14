@@ -465,15 +465,24 @@ def setup_webhook():
     if not BOT_TOKEN or not WEBHOOK_URL:
         logger.warning("BOT_TOKEN или WEBHOOK_URL не установлены, вебхук не настроен")
         return
-    try:
-        bot.remove_webhook()
-        bot.set_webhook(
-            url=f"{WEBHOOK_URL}/webhook",
-            allowed_updates=["message", "callback_query", "channel_post", "edited_channel_post"],
-        )
-        logger.info(f"Вебхук установлен: {WEBHOOK_URL}/webhook")
-    except Exception as e:
-        logger.error(f"Ошибка установки вебхука: {e}")
+    target = f"{WEBHOOK_URL}/webhook"
+    # IMPORTANT: Do NOT call remove_webhook() first.
+    # If set_webhook() then fails, the bot would have NO webhook and go silent.
+    # Telegram replaces the old webhook automatically when set_webhook() succeeds.
+    for attempt in range(3):
+        try:
+            bot.set_webhook(
+                url=target,
+                allowed_updates=["message", "callback_query", "channel_post", "edited_channel_post"],
+                drop_pending_updates=False,
+            )
+            logger.info(f"Вебхук установлен: {target}")
+            return
+        except Exception as e:
+            logger.error(f"Ошибка установки вебхука (попытка {attempt+1}/3): {e}")
+            if attempt < 2:
+                import time; time.sleep(2 ** attempt)
+    logger.critical("Не удалось установить вебхук после 3 попыток!")
 
 
 def process_update(update_dict: dict):

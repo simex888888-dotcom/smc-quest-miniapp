@@ -1044,10 +1044,38 @@ async def pet_tap(req: PetTapRequest):
 async def on_startup():
     load_progress()
     logger.info(f"Progress loaded: {len(user_progress)} users")
-    if os.getenv("WEBHOOK_URL"):
-        setup_webhook()
+    webhook_url = os.getenv("WEBHOOK_URL", "")
+    if webhook_url:
+        # Run blocking setup_webhook in executor so it doesn't block event loop
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, setup_webhook)
     else:
         logger.info("WEBHOOK_URL not set — webhook not configured (polling mode)")
     # Start live market feed in background
     asyncio.create_task(start_market_feed_loop())
     logger.info("Market feed background task started")
+    # Keep-alive: prevents Render free tier from sleeping (pings /health every 10 min)
+    if webhook_url:
+        asyncio.create_task(_keep_alive_loop(webhook_url))
+        logger.info("Keep-alive loop started")
+
+
+async def _keep_alive_loop(base_url: str):
+    """Ping /health every 10 minutes so Render free tier doesn't sleep.
+    Also re-registers the webhook every 2 hours as a safeguard."""
+    import httpx
+    health_url = f"{base_url}/health"
+    ping_count = 0
+    while True:
+        await asyncio.sleep(10 * 60)  # 10 minutes
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                await client.get(health_url)
+            ping_count += 1
+            # Re-register webhook every 2 hours (12 pings × 10 min = 120 min)
+            if ping_count % 12 == 0:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, setup_webhook)
+                logger.info("Keep-alive: webhook re-registered")
+        except Exception as e:
+            logger.warning(f"Keep-alive ping failed: {e}")
