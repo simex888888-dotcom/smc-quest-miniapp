@@ -2778,13 +2778,13 @@ img { max-width: 100%; display: block; }
 .deb-btn:active { opacity: 0.85; transform: scale(0.97); }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   PET SYSTEM — SMC Fox companion
+   CIPHER SYSTEM — Bioluminescent Crypto Organism
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /* 4-tab grid */
 .tabs--4 { grid-template-columns: repeat(4, 1fr); }
 
-/* ── Pet screen layout ─────────────────────────────────────────────────────── */
+/* ── Cipher screen layout ──────────────────────────────────────────────────── */
 .pet-screen {
   display: flex;
   flex-direction: column;
@@ -2793,7 +2793,7 @@ img { max-width: 100%; display: block; }
   padding: 8px 16px 24px;
 }
 
-/* ── Fox stage ──────────────────────────────────────────────────────────────── */
+/* ── Cipher stage ──────────────────────────────────────────────────────────── */
 .pet-stage {
   position: relative;
   width: 220px;
@@ -2804,111 +2804,215 @@ img { max-width: 100%; display: block; }
   margin-top: 8px;
 }
 
+/* Bioluminescent aura */
 .pet-aura {
   position: absolute;
-  inset: 0;
+  inset: -10px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 140, 66, 0.18) 0%, transparent 70%);
-  animation: petAuraPulse 3s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(0,212,255,0.15) 0%, rgba(168,85,247,0.08) 50%, transparent 70%);
+  animation: cipherAuraPulse 3s ease-in-out infinite;
 }
 
-@keyframes petAuraPulse {
-  0%, 100% { transform: scale(0.9); opacity: 0.6; }
-  50%       { transform: scale(1.1); opacity: 1; }
+@keyframes cipherAuraPulse {
+  0%, 100% { transform: scale(0.88); opacity: 0.5; }
+  50%       { transform: scale(1.12); opacity: 1; }
 }
 
+/* Cipher organism container */
 .pet-fox {
   position: relative;
   width: 200px;
-  height: 200px;
+  height: 210px;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  animation: foxIdle 3s ease-in-out infinite;
-  transform-origin: center bottom;
-  filter: drop-shadow(0 8px 24px rgba(255,140,66,0.35));
-  transition: filter 0.4s;
+  animation: cipherIdle 3s ease-in-out infinite;
+  transform-origin: center center;
+  filter: drop-shadow(0 0 18px rgba(0,212,255,0.4)) drop-shadow(0 8px 20px rgba(0,0,0,0.4));
+  transition: filter 0.5s;
 }
 
-.fox-svg {
+.cipher-svg {
   width: 100%;
   height: 100%;
 }
 
-/* ── Fox visual state animations ─────────────────────────────────────────────── */
+/* ── Cipher idle inner animations ────────────────────────────────────────────── */
 
-/* idle: gentle breathing bob */
-@keyframes foxIdle {
-  0%, 100% { transform: translateY(0) scaleY(1); }
-  50%       { transform: translateY(-6px) scaleY(1.02); }
+/* Core heartbeat pulse */
+.cipher-core {
+  animation: cipherCorePulse 2s ease-in-out infinite;
+  transform-origin: 100px 100px;
 }
 
-/* happy: light bounce */
-@keyframes foxHappy {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25%       { transform: translateY(-10px) rotate(-3deg); }
-  75%       { transform: translateY(-6px) rotate(3deg); }
+@keyframes cipherCorePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50%       { opacity: 1;    transform: scale(1.08); }
 }
 
-/* excited: squish & spring */
-@keyframes foxExcited {
-  0%   { transform: scaleX(1)   scaleY(1); }
-  20%  { transform: scaleX(1.15) scaleY(0.85); }
-  40%  { transform: scaleX(0.9)  scaleY(1.12); }
-  60%  { transform: scaleX(1.08) scaleY(0.94); }
-  80%  { transform: scaleX(0.97) scaleY(1.04); }
-  100% { transform: scaleX(1)   scaleY(1); }
+.cipher-core-inner {
+  animation: cipherCoreInnerPulse 2s ease-in-out infinite;
+  animation-delay: 0.2s;
+  transform-origin: 100px 100px;
 }
 
-/* hungry: slow sad droop */
-@keyframes foxHungry {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  40%       { transform: translateY(3px) rotate(-1deg); }
-  60%       { transform: translateY(3px) rotate(1deg); }
+@keyframes cipherCoreInnerPulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.12); }
 }
 
-/* sick: grey-ish shake */
-@keyframes foxSick {
-  0%, 100% { transform: translateX(0) rotate(0deg); }
-  20%       { transform: translateX(-4px) rotate(-2deg); }
-  40%       { transform: translateX(4px)  rotate(2deg); }
-  60%       { transform: translateX(-3px) rotate(-1deg); }
-  80%       { transform: translateX(3px)  rotate(1deg); }
+/* Circuit nodes fire randomly */
+.cipher-node {
+  animation: nodeFlicker 3s ease-in-out infinite;
+}
+.cipher-node:nth-child(2) { animation-delay: 0.4s; }
+.cipher-node:nth-child(3) { animation-delay: 0.8s; }
+.cipher-node:nth-child(4) { animation-delay: 1.2s; }
+.cipher-node:nth-child(5) { animation-delay: 1.6s; }
+.cipher-node:nth-child(6) { animation-delay: 0.2s; }
+.cipher-node:nth-child(7) { animation-delay: 1.0s; }
+.cipher-node:nth-child(8) { animation-delay: 1.8s; }
+.cipher-node:nth-child(9) { animation-delay: 0.6s; }
+
+@keyframes nodeFlicker {
+  0%, 85%, 100% { opacity: 0.9; }
+  88%           { opacity: 0.1; }
+  92%           { opacity: 1; }
 }
 
-/* tap squish: quick scale burst */
-@keyframes foxTapSquish {
+/* Ambient bioluminescent particles drift */
+.cipher-particle-float {
+  animation: particleDrift 4s ease-in-out infinite;
+}
+.cipher-particle-float:nth-child(1) { animation-delay: 0s;    animation-duration: 3.8s; }
+.cipher-particle-float:nth-child(2) { animation-delay: 0.6s;  animation-duration: 4.2s; }
+.cipher-particle-float:nth-child(3) { animation-delay: 1.2s;  animation-duration: 3.5s; }
+.cipher-particle-float:nth-child(4) { animation-delay: 1.8s;  animation-duration: 4.5s; }
+.cipher-particle-float:nth-child(5) { animation-delay: 2.4s;  animation-duration: 3.9s; }
+.cipher-particle-float:nth-child(6) { animation-delay: 0.3s;  animation-duration: 4.1s; }
+.cipher-particle-float:nth-child(7) { animation-delay: 0.9s;  animation-duration: 3.6s; }
+.cipher-particle-float:nth-child(8) { animation-delay: 1.5s;  animation-duration: 4.3s; }
+
+@keyframes particleDrift {
+  0%, 100% { transform: translateY(0)   opacity: 0.5; }
+  50%       { transform: translateY(-6px); opacity: 1; }
+}
+
+/* Outer rings breathe */
+.cipher-outer-ring {
+  animation: outerRingPulse 4s ease-in-out infinite;
+}
+.cipher-outer-ring:nth-child(1) { animation-delay: 0s; }
+.cipher-outer-ring:nth-child(2) { animation-delay: 0.5s; }
+
+@keyframes outerRingPulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+/* Tendrils float gently */
+.cipher-tendrils {
+  animation: tendrilFloat 5s ease-in-out infinite;
+  transform-origin: 100px 170px;
+}
+
+@keyframes tendrilFloat {
+  0%, 100% { transform: scaleY(1)    translateY(0); }
+  50%       { transform: scaleY(1.04) translateY(2px); }
+}
+
+/* ── Cipher organism idle/state animations ───────────────────────────────────── */
+
+/* Idle: gentle float with breathing */
+@keyframes cipherIdle {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-7px) scale(1.01); }
+}
+
+/* Resonating: energetic bounce */
+@keyframes cipherResonating {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  20%       { transform: translateY(-12px) scale(1.03) rotate(-1deg); }
+  60%       { transform: translateY(-8px) scale(1.02) rotate(1deg); }
+}
+
+/* Excited: rapid oscillation */
+@keyframes cipherExcited {
+  0%   { transform: scale(1)    scaleY(1); }
+  20%  { transform: scale(1.1)  scaleY(0.92); }
+  40%  { transform: scale(0.94) scaleY(1.08); }
+  60%  { transform: scale(1.06) scaleY(0.96); }
+  80%  { transform: scale(0.98) scaleY(1.03); }
+  100% { transform: scale(1)    scaleY(1); }
+}
+
+/* Low energy: slow droop */
+@keyframes cipherDistressed {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  40%       { transform: translateY(4px) rotate(-0.5deg); }
+  70%       { transform: translateY(4px) rotate(0.5deg); }
+}
+
+/* Cellular breakdown: flicker */
+@keyframes cipherSick {
+  0%, 100% { transform: translateX(0px); opacity: 1; }
+  20%       { transform: translateX(-3px); opacity: 0.85; }
+  40%       { transform: translateX(3px);  opacity: 0.9; }
+  60%       { transform: translateX(-2px); opacity: 0.8; }
+  80%       { transform: translateX(2px);  opacity: 0.85; }
+}
+
+/* Tap squish — spring physics */
+@keyframes cipherTapSquish {
   0%   { transform: scale(1); }
-  30%  { transform: scale(0.9) scaleY(0.88); }
-  60%  { transform: scale(1.08) scaleY(1.05); }
+  10%  { transform: scaleX(0.88) scaleY(1.15); }
+  35%  { transform: scaleX(1.1)  scaleY(0.95) translateY(-4px); }
+  65%  { transform: scaleX(0.97) scaleY(1.03) translateY(-2px); }
   100% { transform: scale(1); }
 }
 
-/* per visual-state classes applied by JS */
-.pet-fox--idle    { animation: foxIdle    3s ease-in-out infinite; }
-.pet-fox--happy   { animation: foxHappy   2s ease-in-out infinite; }
-.pet-fox--excited { animation: foxExcited 0.7s ease-in-out infinite; }
-.pet-fox--hungry  { animation: foxHungry  4s ease-in-out infinite; }
+/* ── Visual-state classes applied by JS ──────────────────────────────────────── */
+.pet-fox--idle    { animation: cipherIdle       3s ease-in-out infinite; }
+.pet-fox--happy   { animation: cipherResonating 2s ease-in-out infinite; }
+.pet-fox--excited { animation: cipherExcited    0.65s ease-in-out infinite; }
+.pet-fox--hungry  { animation: cipherDistressed 4s ease-in-out infinite; }
 .pet-fox--sick    {
-  animation: foxSick 1.2s ease-in-out infinite;
-  filter: drop-shadow(0 8px 24px rgba(120,200,80,0.3)) saturate(0.4);
+  animation: cipherSick 1.4s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(0,212,255,0.15)) drop-shadow(0 4px 12px rgba(0,0,0,0.5)) saturate(0.3);
 }
 
-/* tap animation class (added/removed by JS) */
-.pet-fox--tapping { animation: foxTapSquish 0.3s ease-out forwards; }
+/* Tap animation class */
+.pet-fox--tapping { animation: cipherTapSquish 0.42s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 
-/* sick eyes overlay */
-.pet-fox--sick .fox-sick-overlay { display: block !important; }
-.pet-fox--sick .fox-eyes         { display: none; }
+/* State-driven eye swapping (same class names used by JS/CSS logic) */
+.pet-fox--sick .fox-sick-overlay  { display: block !important; }
+.pet-fox--sick .fox-eyes          { display: none; }
 
-/* happy eyes swap */
 .pet-fox--happy .fox-eyes-happy,
 .pet-fox--excited .fox-eyes-happy { display: block !important; }
 .pet-fox--happy .fox-eyes,
 .pet-fox--excited .fox-eyes       { display: none; }
 
-/* hungry mouth droop */
-.pet-fox--hungry .fox-mouth { d: path("M73 96 Q80 92 87 96"); }
+/* Excited boosts the glow */
+.pet-fox--excited {
+  filter: drop-shadow(0 0 28px rgba(0,212,255,0.65)) drop-shadow(0 8px 20px rgba(0,0,0,0.4));
+}
+
+/* Oracle mode: purple flood */
+.pet-fox--oracle .fox-eyes-oracle { display: block !important; }
+.pet-fox--oracle .fox-eyes        { display: none; }
+.pet-fox--oracle {
+  filter: drop-shadow(0 0 32px rgba(168,85,247,0.8)) drop-shadow(0 8px 20px rgba(0,0,0,0.4));
+}
+
+/* DATA UNITS icon styling */
+.cipher-data-icon {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 900;
+  color: #00d4ff;
+  text-shadow: 0 0 8px rgba(0,212,255,0.7);
+}
 
 /* ── Floating tap reward numbers ─────────────────────────────────────────────── */
 .pet-float-rewards {
@@ -3009,13 +3113,13 @@ img { max-width: 100%; display: block; }
 }
 
 .pet-stat-fill--hunger {
-  background: linear-gradient(90deg, #ff9a44, #ff6b1a);
-  box-shadow: 0 0 8px rgba(255,107,26,0.5);
+  background: linear-gradient(90deg, #00b4d8, #00d4ff);
+  box-shadow: 0 0 8px rgba(0,212,255,0.5);
 }
 
 .pet-stat-fill--happiness {
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
-  box-shadow: 0 0 8px rgba(251,191,36,0.4);
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
+  box-shadow: 0 0 8px rgba(168,85,247,0.45);
 }
 
 .pet-stat-fill--health {
@@ -3056,8 +3160,9 @@ img { max-width: 100%; display: block; }
 .pet-level-badge {
   font-size: 13px;
   font-weight: 800;
-  color: #ff8c42;
+  color: #00d4ff;
   font-family: 'JetBrains Mono', monospace;
+  text-shadow: 0 0 8px rgba(0,212,255,0.5);
 }
 
 .pet-xp-info {
@@ -3077,9 +3182,9 @@ img { max-width: 100%; display: block; }
 
 .pet-xp-fill {
   height: 100%;
-  background: linear-gradient(90deg, #ff8c42, #fbbf24);
+  background: linear-gradient(90deg, #0090c8, #00d4ff, #a855f7);
   border-radius: 5px;
-  box-shadow: 0 0 10px rgba(255,140,66,0.5);
+  box-shadow: 0 0 10px rgba(0,212,255,0.55);
   transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -3096,8 +3201,9 @@ img { max-width: 100%; display: block; }
 .pet-coins-display span {
   font-size: 14px;
   font-weight: 800;
-  color: #fbbf24;
+  color: #00d4ff;
   font-family: 'JetBrains Mono', monospace;
+  text-shadow: 0 0 6px rgba(0,212,255,0.5);
 }
 
 /* ── Hint text ───────────────────────────────────────────────────────────────── */
@@ -3114,19 +3220,19 @@ img { max-width: 100%; display: block; }
   opacity: 0.7;
 }
 
-/* ── Level-up flash (added by JS, removed after) ──────────────────────────────── */
+/* ── Evolution flash (added by JS, removed after) ─────────────────────────────── */
 .pet-level-up-flash {
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle, rgba(255,140,66,0.25) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(0,212,255,0.2) 0%, rgba(168,85,247,0.1) 50%, transparent 70%);
   pointer-events: none;
   z-index: 9999;
-  animation: levelUpFlash 0.8s ease-out forwards;
+  animation: cipherEvoFlash 0.9s ease-out forwards;
 }
 
-@keyframes levelUpFlash {
+@keyframes cipherEvoFlash {
   0%   { opacity: 0; }
-  30%  { opacity: 1; }
+  25%  { opacity: 1; }
   100% { opacity: 0; }
 }
 
@@ -3228,30 +3334,37 @@ img { max-width: 100%; display: block; }
   gap: 8px;
 }
 
-/* ── Evolution badge ───────────────────────────────────────────────────────── */
+/* ── Evolution / Cipher stage badge ────────────────────────────────────────── */
 .evo-badge {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 140, 66, 0.1);
-  border: 1px solid rgba(255, 140, 66, 0.25);
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.22);
   border-radius: 20px;
   padding: 5px 12px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, box-shadow 0.2s;
   flex: 1;
+  animation: cipherBadgePulse 4s ease-in-out infinite;
 }
 
-.evo-badge:active { background: rgba(255, 140, 66, 0.2); }
+@keyframes cipherBadgePulse {
+  0%, 100% { box-shadow: 0 0 0   rgba(0,212,255,0); }
+  50%       { box-shadow: 0 0 12px rgba(0,212,255,0.3); }
+}
+
+.evo-badge:active { background: rgba(0, 212, 255, 0.18); }
 
 .evo-badge span { font-size: 13px; }
 
 .evo-stage-lbl {
   font-size: 10px !important;
   font-family: 'JetBrains Mono', monospace;
-  color: #ff8c42;
+  color: #00d4ff;
   font-weight: 700;
   margin-left: auto;
+  text-shadow: 0 0 6px rgba(0,212,255,0.6);
 }
 
 /* ── Oracle eye button ─────────────────────────────────────────────────────── */
@@ -3297,7 +3410,7 @@ body.fever-mode .bg-overlay {
 }
 
 body.fever-mode .pet-stage {
-  filter: drop-shadow(0 0 30px rgba(255,140,66,0.6));
+  filter: drop-shadow(0 0 32px rgba(0,212,255,0.65));
 }
 
 .fever-counter {
@@ -3308,8 +3421,8 @@ body.fever-mode .pet-stage {
   font-size: 32px;
   font-weight: 900;
   font-family: 'JetBrains Mono', monospace;
-  color: #ff8c42;
-  text-shadow: 0 0 20px rgba(255,140,66,0.8);
+  color: #00d4ff;
+  text-shadow: 0 0 20px rgba(0,212,255,0.9);
   pointer-events: none;
   z-index: 9000;
   animation: counterPop 0.2s ease-out;

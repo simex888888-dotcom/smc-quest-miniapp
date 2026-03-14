@@ -334,8 +334,8 @@
         <!-- Evolution badge + Oracle eye row -->
         <div class="pet-top-row">
           <div class="evo-badge" id="evoBadge" onclick="showEvolutionInfo()">
-            <span id="evoEmoji">🦊</span>
-            <span id="evoName">Лисёнок</span>
+            <span id="evoEmoji">🧬</span>
+            <span id="evoName">Cell Cipher</span>
             <span class="evo-stage-lbl" id="evoStage">Ст.1</span>
           </div>
           <button class="oracle-eye-btn" id="oracleEyeBtn" onclick="showOracle()">
@@ -353,78 +353,230 @@
           </button>
         </div>
 
-        <!-- Fox stage -->
+        <!-- Cipher stage -->
         <div class="pet-stage" id="petStage">
           <div class="pet-aura" id="petAura"></div>
           <div class="pet-fox" id="petFox" onclick="onPetTap(event)">
-            <!-- Fox SVG inline -->
-            <svg class="fox-svg" id="foxSvg" viewBox="0 0 160 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- CIPHER — Bioluminescent Crypto Organism -->
+            <svg class="cipher-svg" id="cipherSvg" viewBox="0 0 200 220" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
-                <radialGradient id="foxBodyGrad" cx="50%" cy="40%" r="55%">
-                  <stop offset="0%" stop-color="#ff8c42"/>
-                  <stop offset="100%" stop-color="#d4580a"/>
+                <!-- Body: translucent liquid glass -->
+                <radialGradient id="cxBody" cx="38%" cy="32%" r="62%">
+                  <stop offset="0%"   stop-color="rgba(140,230,255,0.38)"/>
+                  <stop offset="55%"  stop-color="rgba(0,180,255,0.16)"/>
+                  <stop offset="100%" stop-color="rgba(0,80,180,0.06)"/>
                 </radialGradient>
-                <radialGradient id="foxBellyGrad" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stop-color="#ffd4a3"/>
-                  <stop offset="100%" stop-color="#ffb870"/>
+                <!-- Pulsing core heart -->
+                <radialGradient id="cxCore" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%"   stop-color="rgba(200,255,255,0.95)"/>
+                  <stop offset="40%"  stop-color="rgba(0,212,255,0.75)"/>
+                  <stop offset="100%" stop-color="rgba(0,80,200,0)"/>
                 </radialGradient>
-                <radialGradient id="foxEarGrad" cx="40%" cy="30%" r="60%">
-                  <stop offset="0%" stop-color="#ff6b1a"/>
-                  <stop offset="100%" stop-color="#c44a00"/>
+                <!-- Inner bright core -->
+                <radialGradient id="cxCoreInner" cx="40%" cy="35%" r="55%">
+                  <stop offset="0%"   stop-color="#e0ffff"/>
+                  <stop offset="100%" stop-color="rgba(0,200,255,0.6)"/>
                 </radialGradient>
+                <!-- Vein glow gradient -->
+                <linearGradient id="cxVeinH" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%"   stop-color="#00d4ff" stop-opacity="0"/>
+                  <stop offset="50%"  stop-color="#00d4ff" stop-opacity="1"/>
+                  <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="cxVeinV" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%"   stop-color="#00d4ff" stop-opacity="0"/>
+                  <stop offset="50%"  stop-color="#a855f7" stop-opacity="0.9"/>
+                  <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+                </linearGradient>
+                <!-- Ground shadow -->
+                <radialGradient id="cxShadow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%"   stop-color="rgba(0,180,255,0.22)"/>
+                  <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+                </radialGradient>
+                <!-- Glow filter -->
+                <filter id="cxGlow" x="-40%" y="-40%" width="180%" height="180%">
+                  <feGaussianBlur stdDeviation="5" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="cxStrongGlow" x="-60%" y="-60%" width="220%" height="220%">
+                  <feGaussianBlur stdDeviation="9" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="cxOracleGlow" x="-60%" y="-60%" width="220%" height="220%">
+                  <feGaussianBlur stdDeviation="10" result="blur"/>
+                  <feColorMatrix type="matrix" values="0.5 0 0.5 0 0  0 0 0.8 0 0  0.5 0 1 0 0  0 0 0 1.2 0" in="blur" result="colored"/>
+                  <feMerge><feMergeNode in="colored"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="cxDistressFilter">
+                  <feColorMatrix type="saturate" values="0.2"/>
+                </filter>
               </defs>
-              <!-- Tail -->
-              <path class="fox-tail" d="M105 130 Q145 115 148 90 Q152 65 130 60 Q118 58 115 75 Q112 90 118 100 Q125 112 115 125Z" fill="url(#foxBodyGrad)" opacity="0.9"/>
-              <path d="M148 90 Q150 70 138 62 Q130 58 125 65 Q132 68 134 80 Q136 92 130 102Z" fill="#fff8f0" opacity="0.7"/>
-              <!-- Body -->
-              <ellipse class="fox-body" cx="80" cy="130" rx="38" ry="42" fill="url(#foxBodyGrad)"/>
-              <!-- Belly -->
-              <ellipse cx="80" cy="138" rx="22" ry="26" fill="url(#foxBellyGrad)" opacity="0.9"/>
-              <!-- Left ear -->
-              <path class="fox-ear-l" d="M52 68L42 32L70 55Z" fill="url(#foxEarGrad)"/>
-              <path d="M54 65L47 40L67 56Z" fill="#ff9a6c" opacity="0.7"/>
-              <!-- Right ear -->
-              <path class="fox-ear-r" d="M108 68L118 32L90 55Z" fill="url(#foxEarGrad)"/>
-              <path d="M106 65L113 40L93 56Z" fill="#ff9a6c" opacity="0.7"/>
-              <!-- Head -->
-              <ellipse class="fox-head" cx="80" cy="78" rx="34" ry="30" fill="url(#foxBodyGrad)"/>
-              <!-- Face mask (white snout area) -->
-              <ellipse cx="80" cy="88" rx="18" ry="14" fill="#fff8f0"/>
-              <!-- Eyes -->
-              <g class="fox-eyes">
-                <ellipse cx="66" cy="72" rx="7" ry="8" fill="#1a1215"/>
-                <ellipse cx="66" cy="72" rx="3" ry="3.5" fill="#fff" opacity="0.9"/>
-                <circle cx="67.5" cy="70.5" r="1.5" fill="#fff"/>
-                <ellipse cx="94" cy="72" rx="7" ry="8" fill="#1a1215"/>
-                <ellipse cx="94" cy="72" rx="3" ry="3.5" fill="#fff" opacity="0.9"/>
-                <circle cx="95.5" cy="70.5" r="1.5" fill="#fff"/>
+
+              <!-- Ground halo -->
+              <ellipse cx="100" cy="212" rx="48" ry="7" fill="url(#cxShadow)" class="cipher-shadow"/>
+
+              <!-- Outer body glow / aura rings -->
+              <ellipse cx="100" cy="105" rx="72" ry="78"
+                       fill="rgba(0,180,255,0.04)"
+                       stroke="rgba(0,212,255,0.08)" stroke-width="1"
+                       class="cipher-outer-ring"/>
+              <ellipse cx="100" cy="105" rx="62" ry="67"
+                       fill="rgba(0,180,255,0.06)"
+                       stroke="rgba(0,212,255,0.12)" stroke-width="1"
+                       class="cipher-outer-ring"/>
+
+              <!-- Main body — liquid glass blob -->
+              <path class="cipher-body"
+                    d="M100 38
+                       C128 38 155 58 160 88
+                       C165 118 150 148 130 163
+                       C118 171 109 176 100 176
+                       C91  176 82  171 70  163
+                       C50  148 35  118 40  88
+                       C45  58  72  38 100 38Z"
+                    fill="url(#cxBody)"
+                    stroke="rgba(0,212,255,0.25)" stroke-width="1.5"/>
+
+              <!-- Specular highlight (glassy shine) -->
+              <path d="M78 52 Q100 44 120 58 Q110 50 100 48 Q90 46 78 52Z"
+                    fill="rgba(200,240,255,0.25)" class="cipher-shine"/>
+
+              <!-- Circuit veins — main network -->
+              <g class="cipher-veins" filter="url(#cxGlow)">
+                <!-- Vertical spine -->
+                <line x1="100" y1="58"  x2="100" y2="168"
+                      stroke="url(#cxVeinV)" stroke-width="1.2"/>
+                <!-- Left branch top -->
+                <path d="M100 75 L82 85 L68 80 L58 95 L68 112 L82 117"
+                      stroke="rgba(0,212,255,0.75)" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Right branch top -->
+                <path d="M100 75 L118 85 L132 80 L142 95 L132 112 L118 117"
+                      stroke="rgba(0,212,255,0.75)" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Left branch lower -->
+                <path d="M82 117 L70 132 L76 150"
+                      stroke="rgba(168,85,247,0.6)" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+                <!-- Right branch lower -->
+                <path d="M118 117 L130 132 L124 150"
+                      stroke="rgba(168,85,247,0.6)" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+                <!-- Horizontal connectors -->
+                <line x1="68" y1="95"  x2="132" y2="95"
+                      stroke="rgba(0,212,255,0.3)" stroke-width="0.8"/>
+                <line x1="68" y1="112" x2="132" y2="112"
+                      stroke="rgba(0,212,255,0.25)" stroke-width="0.8"/>
+                <!-- Circuit nodes (synapses) -->
+                <circle cx="82"  cy="85"  r="2.5" fill="#00d4ff" opacity="0.9"  class="cipher-node"/>
+                <circle cx="118" cy="85"  r="2.5" fill="#00d4ff" opacity="0.9"  class="cipher-node"/>
+                <circle cx="68"  cy="95"  r="2"   fill="#00d4ff" opacity="0.8"  class="cipher-node"/>
+                <circle cx="132" cy="95"  r="2"   fill="#00d4ff" opacity="0.8"  class="cipher-node"/>
+                <circle cx="68"  cy="112" r="2"   fill="#00d4ff" opacity="0.75" class="cipher-node"/>
+                <circle cx="132" cy="112" r="2"   fill="#00d4ff" opacity="0.75" class="cipher-node"/>
+                <circle cx="82"  cy="117" r="2.5" fill="#a855f7" opacity="0.8"  class="cipher-node"/>
+                <circle cx="118" cy="117" r="2.5" fill="#a855f7" opacity="0.8"  class="cipher-node"/>
+                <circle cx="100" cy="148" r="2"   fill="#a855f7" opacity="0.7"  class="cipher-node"/>
               </g>
-              <!-- Happy eyes (hidden by default) -->
-              <g class="fox-eyes-happy" style="display:none">
-                <path d="M60 72 Q66 66 72 72" stroke="#1a1215" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-                <path d="M88 72 Q94 66 100 72" stroke="#1a1215" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+              <!-- Beating heart / core -->
+              <circle cx="100" cy="100" r="24"
+                      fill="url(#cxCore)"
+                      filter="url(#cxStrongGlow)"
+                      class="cipher-core"/>
+              <circle cx="100" cy="100" r="13"
+                      fill="url(#cxCoreInner)"
+                      filter="url(#cxGlow)"
+                      class="cipher-core-inner"/>
+
+              <!-- SMC candle chart inside core -->
+              <g class="cipher-inner-chart" opacity="0.95">
+                <rect x="87" y="94" width="26" height="15" rx="2.5" fill="rgba(0,8,18,0.75)"/>
+                <rect x="90"  y="96"  width="3.5" height="9"  rx="0.8" fill="#10b981"/>
+                <line x1="91.5" y1="95"   x2="91.5" y2="106" stroke="#10b981" stroke-width="0.9"/>
+                <rect x="95.5" y="99.5" width="3.5" height="5.5" rx="0.8" fill="#ef4444"/>
+                <line x1="97"   y1="97.5" x2="97"   y2="106" stroke="#ef4444" stroke-width="0.9"/>
+                <rect x="101"  y="96"  width="3.5" height="8"  rx="0.8" fill="#10b981"/>
+                <line x1="102.5" y1="95" x2="102.5" y2="105" stroke="#10b981" stroke-width="0.9"/>
+                <path d="M89 104 L97 101 L102 102 L111 97"
+                      stroke="#00d4ff" stroke-width="0.8" fill="none" opacity="0.9"/>
               </g>
-              <!-- Nose -->
-              <ellipse cx="80" cy="88" rx="4" ry="3" fill="#2d1f25"/>
-              <!-- Mouth -->
-              <path class="fox-mouth" d="M73 94 Q80 100 87 94" stroke="#2d1f25" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-              <!-- Whiskers -->
-              <line x1="48" y1="88" x2="63" y2="86" stroke="#d4580a" stroke-width="1" opacity="0.6"/>
-              <line x1="48" y1="92" x2="63" y2="91" stroke="#d4580a" stroke-width="1" opacity="0.6"/>
-              <line x1="97" y1="86" x2="112" y2="88" stroke="#d4580a" stroke-width="1" opacity="0.6"/>
-              <line x1="97" y1="91" x2="112" y2="92" stroke="#d4580a" stroke-width="1" opacity="0.6"/>
-              <!-- Paws -->
-              <ellipse class="fox-paw-l" cx="55" cy="168" rx="12" ry="8" fill="url(#foxBodyGrad)"/>
-              <ellipse class="fox-paw-r" cx="105" cy="168" rx="12" ry="8" fill="url(#foxBodyGrad)"/>
-              <!-- Sick overlay (hidden) -->
-              <g class="fox-sick-overlay" style="display:none" opacity="0.5">
-                <circle cx="66" cy="72" r="10" fill="#7ecf6a"/>
-                <circle cx="94" cy="72" r="10" fill="#7ecf6a"/>
-                <text x="66" y="76" text-anchor="middle" font-size="10" fill="#fff">x</text>
-                <text x="94" y="76" text-anchor="middle" font-size="10" fill="#fff">x</text>
+
+              <!-- Quantum aperture eyes — normal -->
+              <g class="cipher-eyes fox-eyes" id="foxEyesNormal">
+                <!-- Left -->
+                <ellipse cx="81"  cy="87" rx="7.5" ry="8.5" fill="rgba(0,5,18,0.85)"/>
+                <circle  cx="81"  cy="87" r="4.5"  fill="#00d4ff" opacity="0.55"/>
+                <circle  cx="81"  cy="87" r="2.2"  fill="#e8ffff" opacity="0.9"/>
+                <circle  cx="82.5" cy="85.5" r="1.2" fill="#fff"/>
+                <!-- Right -->
+                <ellipse cx="119" cy="87" rx="7.5" ry="8.5" fill="rgba(0,5,18,0.85)"/>
+                <circle  cx="119" cy="87" r="4.5"  fill="#00d4ff" opacity="0.55"/>
+                <circle  cx="119" cy="87" r="2.2"  fill="#e8ffff" opacity="0.9"/>
+                <circle  cx="120.5" cy="85.5" r="1.2" fill="#fff"/>
+              </g>
+
+              <!-- Eyes — resonating / happy -->
+              <g class="cipher-eyes-happy fox-eyes-happy" id="foxEyesHappy" style="display:none">
+                <path d="M74 88 Q81 82 88 88" stroke="#00d4ff" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+                <path d="M112 88 Q119 82 126 88" stroke="#00d4ff" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+                <circle cx="81"  cy="87" r="2.5" fill="#00d4ff" opacity="0.45"/>
+                <circle cx="119" cy="87" r="2.5" fill="#00d4ff" opacity="0.45"/>
+                <!-- Sparkle nodes -->
+                <circle cx="88"  cy="80" r="1.5" fill="#00d4ff" opacity="0.7"/>
+                <circle cx="112" cy="80" r="1.5" fill="#00d4ff" opacity="0.7"/>
+              </g>
+
+              <!-- Eyes — blink (scanning) -->
+              <g class="cipher-eyes-blink fox-eyes-blink" id="foxEyesBlink" style="display:none">
+                <path d="M74 87 Q81 84 88 87" stroke="#00d4ff" stroke-width="2" stroke-linecap="round" fill="none"/>
+                <path d="M112 87 Q119 84 126 87" stroke="#00d4ff" stroke-width="2" stroke-linecap="round" fill="none"/>
+              </g>
+
+              <!-- Eyes — Oracle mode (purple third eye) -->
+              <g class="cipher-eyes-oracle fox-eyes-oracle" id="foxEyesOracle" style="display:none" filter="url(#cxOracleGlow)">
+                <ellipse cx="81"  cy="87" rx="7.5" ry="8.5" fill="#7c3aed" opacity="0.92"/>
+                <circle  cx="81"  cy="87" r="3.5"  fill="#0d001a"/>
+                <circle  cx="82.5" cy="85.5" r="1.8" fill="#fff" opacity="0.85"/>
+                <ellipse cx="119" cy="87" rx="7.5" ry="8.5" fill="#7c3aed" opacity="0.92"/>
+                <circle  cx="119" cy="87" r="3.5"  fill="#0d001a"/>
+                <circle  cx="120.5" cy="85.5" r="1.8" fill="#fff" opacity="0.85"/>
+                <!-- Geometric third eye -->
+                <path d="M96 65 L100 56 L104 65 L100 62Z" fill="#a855f7"/>
+                <circle cx="100" cy="61" r="3.5" fill="#a855f7" filter="url(#cxStrongGlow)"/>
+                <circle cx="100" cy="61" r="1.8" fill="#e0ccff" opacity="0.9"/>
+              </g>
+
+              <!-- Eyes — distressed (cellular breakdown) -->
+              <g class="cipher-eyes-sick fox-eyes-sick fox-sick-overlay" id="foxEyesSick" style="display:none">
+                <path d="M75 84 L87 91 M87 84 L75 91" stroke="#00d4ff" stroke-width="2.2" stroke-linecap="round" opacity="0.35"/>
+                <path d="M113 84 L125 91 M125 84 L113 91" stroke="#00d4ff" stroke-width="2.2" stroke-linecap="round" opacity="0.35"/>
+              </g>
+
+              <!-- Jellyfish tendrils (float below body) -->
+              <g class="cipher-tendrils" opacity="0.45">
+                <path d="M72  168 Q65 183 70 200" stroke="#00d4ff" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+                <path d="M86  174 Q82 190 85 207" stroke="#00d4ff" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+                <path d="M100 176 Q100 193 100 210" stroke="#00d4ff" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+                <path d="M114 174 Q118 190 115 207" stroke="#00d4ff" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+                <path d="M128 168 Q135 183 130 200" stroke="#00d4ff" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+                <!-- Tendril glow tips -->
+                <circle cx="70"  cy="200" r="1.5" fill="#00d4ff" opacity="0.5"/>
+                <circle cx="85"  cy="207" r="1.2" fill="#00d4ff" opacity="0.4"/>
+                <circle cx="100" cy="210" r="1.5" fill="#a855f7" opacity="0.5"/>
+                <circle cx="115" cy="207" r="1.2" fill="#00d4ff" opacity="0.4"/>
+                <circle cx="130" cy="200" r="1.5" fill="#00d4ff" opacity="0.5"/>
+              </g>
+
+              <!-- Bioluminescent ambient particles -->
+              <g class="cipher-ambient-particles">
+                <circle cx="55"  cy="72"  r="1.8" fill="#00d4ff" opacity="0.55" class="cipher-particle-float"/>
+                <circle cx="148" cy="78"  r="1.5" fill="#00d4ff" opacity="0.45" class="cipher-particle-float"/>
+                <circle cx="48"  cy="118" r="1.2" fill="#a855f7" opacity="0.5"  class="cipher-particle-float"/>
+                <circle cx="155" cy="122" r="1.5" fill="#00d4ff" opacity="0.5"  class="cipher-particle-float"/>
+                <circle cx="60"  cy="148" r="1.2" fill="#00d4ff" opacity="0.35" class="cipher-particle-float"/>
+                <circle cx="145" cy="145" r="1.5" fill="#a855f7" opacity="0.45" class="cipher-particle-float"/>
+                <circle cx="88"  cy="44"  r="1.2" fill="#00d4ff" opacity="0.4"  class="cipher-particle-float"/>
+                <circle cx="115" cy="44"  r="1"   fill="#00d4ff" opacity="0.35" class="cipher-particle-float"/>
               </g>
             </svg>
-            <!-- Floating tap rewards container -->
+            <!-- Floating tap rewards & effects -->
             <div class="pet-float-rewards" id="petFloatRewards"></div>
           </div>
           <!-- Combo badge -->
@@ -433,55 +585,55 @@
           </div>
         </div>
 
-        <!-- Stat bars -->
+        <!-- Cipher stat bars -->
         <div class="pet-stats">
           <div class="pet-stat">
             <div class="pet-stat-header">
-              <span class="pet-stat-icon">🍖</span>
-              <span class="pet-stat-label">Сытость</span>
+              <span class="pet-stat-icon">⚡</span>
+              <span class="pet-stat-label">Энергия</span>
               <span class="pet-stat-val" id="petHunger">80</span>
             </div>
             <div class="pet-stat-bar"><div class="pet-stat-fill pet-stat-fill--hunger" id="petHungerBar" style="width:80%"></div></div>
           </div>
           <div class="pet-stat">
             <div class="pet-stat-header">
-              <span class="pet-stat-icon">😊</span>
-              <span class="pet-stat-label">Счастье</span>
+              <span class="pet-stat-icon">〜</span>
+              <span class="pet-stat-label">Резонанс</span>
               <span class="pet-stat-val" id="petHappiness">80</span>
             </div>
             <div class="pet-stat-bar"><div class="pet-stat-fill pet-stat-fill--happiness" id="petHappinessBar" style="width:80%"></div></div>
           </div>
           <div class="pet-stat">
             <div class="pet-stat-header">
-              <span class="pet-stat-icon">❤️</span>
-              <span class="pet-stat-label">Здоровье</span>
+              <span class="pet-stat-icon">🔋</span>
+              <span class="pet-stat-label">Целостность</span>
               <span class="pet-stat-val" id="petHealth">100</span>
             </div>
             <div class="pet-stat-bar"><div class="pet-stat-fill pet-stat-fill--health" id="petHealthBar" style="width:100%"></div></div>
           </div>
         </div>
 
-        <!-- Pet level & XP -->
+        <!-- Cipher mutation points & DATA UNITS -->
         <div class="pet-level-card">
           <div class="pet-level-left">
-            <div class="pet-level-badge" id="petLevelBadge">Ур. 1</div>
+            <div class="pet-level-badge" id="petLevelBadge">Ст. 1</div>
             <div class="pet-xp-info">
-              <span id="petXpCurrent">0</span> / <span id="petXpNext">50</span> XP
+              <span id="petXpCurrent">0</span> / <span id="petXpNext">50</span> MP
             </div>
           </div>
           <div class="pet-xp-bar-wrap">
             <div class="pet-xp-bar"><div class="pet-xp-fill" id="petXpFill" style="width:0%"></div></div>
           </div>
           <div class="pet-coins-display">
-            <span class="pet-coin-icon">🪙</span>
+            <span class="pet-coin-icon cipher-data-icon">Ð</span>
             <span id="petCoins">0</span>
           </div>
         </div>
 
         <!-- Hint -->
         <div class="pet-hint" id="petHint">
-          Тапай лисичку чтобы она была счастлива! 🦊<br/>
-          <small>Проходи уроки — кормишь питомца</small>
+          Активируй Cipher — тапай для резонанса 🧬<br/>
+          <small>Исследуй протоколы — восстанавливай энергию</small>
         </div>
 
       </div>
@@ -768,7 +920,7 @@
     <div class="modal-backdrop" onclick="closeModal('evolutionModal')"></div>
     <div class="modal-content evo-modal-content">
       <div class="evo-particles" id="evoParticles"></div>
-      <div class="evo-emoji-big" id="evoEmojiBig">🦊</div>
+      <div class="evo-emoji-big" id="evoEmojiBig">🧬</div>
       <div class="evo-modal-title" id="evoModalTitle">Эволюция!</div>
       <div class="evo-modal-name" id="evoModalName"></div>
       <div class="evo-stages-list" id="evoStagesList"></div>

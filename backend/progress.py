@@ -616,13 +616,13 @@ def add_pet_coins(user_id: int, amount: int) -> int:
 # ══════════════════════════════════════════════════════════════════════════════
 
 EVOLUTION_STAGES: List[Dict[str, Any]] = [
-    {"stage": 1, "name": "Лисёнок",         "emoji": "🦊",  "req": "Начало пути"},
-    {"stage": 2, "name": "Внимательная",     "emoji": "👁️",  "req": "Квиз по ордер-блокам пройден"},
-    {"stage": 3, "name": "Лиса-аналитик",   "emoji": "📊",  "req": "OB + FVG + Market Structure"},
-    {"stage": 4, "name": "Теневая лиса",    "emoji": "🌑",  "req": "Стрик 7 дней"},
-    {"stage": 5, "name": "Золотая лиса",    "emoji": "✨",  "req": "5 правильных Oracle-предсказаний"},
-    {"stage": 6, "name": "Лиса-призрак SMC","emoji": "👻",  "req": "Все модули завершены + 30-дн. стрик"},
-    {"stage": 7, "name": "Apex Fox",         "emoji": "🔱",  "req": "Топ-10 таблицы + абсолютный мастер"},
+    {"stage": 1, "name": "Cell Cipher",    "emoji": "🧬",  "req": "Начало пути. Организм пробуждается."},
+    {"stage": 2, "name": "Neural Cipher",  "emoji": "⚡",  "req": "Order Block протокол пройден"},
+    {"stage": 3, "name": "Circuit Cipher", "emoji": "🔋",  "req": "OB + FVG + Market Structure"},
+    {"stage": 4, "name": "Quantum Cipher", "emoji": "💠",  "req": "Стрик 7 дней исследований"},
+    {"stage": 5, "name": "Shadow Cipher",  "emoji": "🌑",  "req": "5 Oracle-предсказаний подтверждено"},
+    {"stage": 6, "name": "Apex Cipher",    "emoji": "💎",  "req": "Все модули + 30-дн. стрик"},
+    {"stage": 7, "name": "Genesis Cipher", "emoji": "✨",  "req": "Топ-10 + абсолютный архитектор рынка"},
 ]
 
 
