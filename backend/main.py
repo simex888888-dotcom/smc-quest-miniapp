@@ -806,7 +806,8 @@ async def webhook(request: Request):
     """Process incoming Telegram webhook updates."""
     try:
         data = await request.json()
-        process_update(data)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, process_update, data)
     except Exception as e:
         logger.error(f"Webhook error: {e}")
     return {"ok": True}
