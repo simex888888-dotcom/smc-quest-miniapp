@@ -778,6 +778,43 @@ async def webhook(request: Request):
     return {"ok": True}
 
 
+@app.post("/api/admin/reset-webhook")
+async def reset_webhook(admin_id: int):
+    """Re-register the Telegram webhook. Call this if callbacks stop working."""
+    check_admin(admin_id)
+    webhook_url = os.getenv("WEBHOOK_URL", "")
+    if not webhook_url:
+        raise HTTPException(status_code=500, detail="WEBHOOK_URL не настроен")
+    try:
+        from bot import setup_webhook
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, setup_webhook)
+        return {"ok": True, "webhook_url": f"{webhook_url}/webhook"}
+    except Exception as e:
+        logger.error(f"reset-webhook error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/webhook-info")
+async def get_webhook_info(admin_id: int):
+    """Get current Telegram webhook info for debugging."""
+    check_admin(admin_id)
+    try:
+        import telebot
+        from bot import bot as tg_bot
+        info = tg_bot.get_webhook_info()
+        return {
+            "ok": True,
+            "url": info.url,
+            "has_custom_certificate": info.has_custom_certificate,
+            "pending_update_count": info.pending_update_count,
+            "last_error_date": info.last_error_date,
+            "last_error_message": info.last_error_message,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── MARKET PULSE ──────────────────────────────────────────────────────────────
 
 @app.get("/api/market/pulse")
