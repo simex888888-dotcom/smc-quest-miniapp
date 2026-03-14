@@ -2894,7 +2894,7 @@ img { max-width: 100%; display: block; }
 .cipher-particle-float:nth-child(8) { animation-delay: 1.5s;  animation-duration: 4.3s; }
 
 @keyframes particleDrift {
-  0%, 100% { transform: translateY(0)   opacity: 0.5; }
+  0%, 100% { transform: translateY(0);   opacity: 0.5; }
   50%       { transform: translateY(-6px); opacity: 1; }
 }
 
@@ -3931,4 +3931,268 @@ body.frenzy-mode .bg-overlay {
   text-align: center;
   margin-bottom: 8px;
   filter: drop-shadow(0 0 16px rgba(0, 212, 255, 0.5));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PET SCREEN OVERHAUL — v2 (production, 60fps GPU-composited only)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Stage: full-width, 65vh, dark radial gradient ───────────────────── */
+.pet-stage {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  height: min(65vh, 460px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: radial-gradient(ellipse 70% 60% at 50% 45%,
+    #0D0F14 0%, #111520 40%, #161B27 100%);
+  box-shadow: 0 0 60px rgba(0,212,255,0.06) inset,
+              0 0 1px rgba(0,212,255,0.12);
+}
+
+/* ── Cipher organism: scale to fill 65% of stage height ─────────────── */
+.pet-fox {
+  position: relative;
+  width: auto;
+  height: 65%;
+  aspect-ratio: 200 / 220;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transform-origin: center bottom;
+  animation: cipherIdleV2 3s ease-in-out infinite,
+             cipherBreath 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 22px rgba(0,212,255,0.45))
+          drop-shadow(0 10px 28px rgba(0,0,0,0.55));
+  transition: filter 0.5s;
+  z-index: 3;
+}
+
+/* Separate breathing from float so both run concurrently */
+@keyframes cipherIdleV2 {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes cipherBreath {
+  0%, 100% { transform: scale(1.0); }
+  50%       { transform: scale(1.04); }
+}
+
+/* State overrides still work — they replace the idle animation */
+.pet-fox--idle    { animation: cipherIdleV2 3s ease-in-out infinite,
+                               cipherBreath 2s ease-in-out infinite; }
+.pet-fox--happy   { animation: cipherResonating 2s ease-in-out infinite; }
+.pet-fox--excited { animation: cipherExcited 0.65s ease-in-out infinite; }
+.pet-fox--hungry  { animation: cipherDistressed 4s ease-in-out infinite; }
+.pet-fox--sick    {
+  animation: cipherSick 1.4s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(0,212,255,0.15))
+          drop-shadow(0 4px 12px rgba(0,0,0,0.5)) saturate(0.3);
+}
+
+/* ── Core glow box-shadow pulse (on .pet-fox element) ─────────────────── */
+@keyframes cipherCoreGlow {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(0,255,255,0.35))
+                     drop-shadow(0 8px 24px rgba(0,0,0,0.5)); }
+  50%       { filter: drop-shadow(0 0 60px rgba(0,255,255,0.75))
+                     drop-shadow(0 8px 24px rgba(0,0,0,0.5)); }
+}
+.pet-fox--idle,
+.pet-fox--happy {
+  animation: cipherIdleV2 3s ease-in-out infinite,
+             cipherCoreGlow 2s ease-in-out infinite;
+}
+
+/* ── Tap squish: scaleY(0.85) then spring back ───────────────────────── */
+@keyframes cipherTapSquishV2 {
+  0%   { transform: scaleX(1)    scaleY(1); }
+  8%   { transform: scaleX(1.12) scaleY(0.85); }
+  100% { transform: scaleX(1)    scaleY(1); }
+}
+.pet-fox--tapping {
+  animation: cipherTapSquishV2 320ms cubic-bezier(0.34,1.56,0.64,1) forwards !important;
+}
+
+/* ── BTC market color themes ─────────────────────────────────────────── */
+.cipher-bull-market {
+  filter: drop-shadow(0 0 28px rgba(255,200,0,0.55))
+          drop-shadow(0 0 56px rgba(255,160,0,0.30))
+          drop-shadow(0 8px 24px rgba(0,0,0,0.5)) !important;
+}
+.cipher-bear-market {
+  filter: drop-shadow(0 0 28px rgba(100,140,180,0.55))
+          drop-shadow(0 8px 24px rgba(0,0,0,0.5)) saturate(0.6) !important;
+}
+
+/* ── Orbit ring: 8 dots circling Cipher ──────────────────────────────── */
+.cipher-orbit-ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.orbit-dot {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #00d4ff;
+  box-shadow: 0 0 6px 2px rgba(0,212,255,0.8);
+  top: 0; left: 0;
+  transform-origin: 0 0;
+  animation: orbitDot 6s linear infinite;
+  animation-delay: calc(var(--i) * -0.75s);
+  opacity: 0.85;
+}
+.orbit-dot:nth-child(odd)  { background: #a855f7; box-shadow: 0 0 6px 2px rgba(168,85,247,0.8); }
+.orbit-dot:nth-child(4n)   { width: 3px; height: 3px; opacity: 0.55; }
+
+@keyframes orbitDot {
+  0%   { transform: rotate(calc(var(--i) * 45deg)) translateX(min(20vh, 140px)) scale(1); opacity: 0.85; }
+  50%  { opacity: 0.4; }
+  100% { transform: rotate(calc(var(--i) * 45deg + 360deg)) translateX(min(20vh, 140px)) scale(1); opacity: 0.85; }
+}
+
+/* ── Lab background layers ───────────────────────────────────────────── */
+.pet-lab-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+/* Far layer: hex grid at opacity 0.05 */
+.lab-bg-hexgrid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52'%3E%3Cpolygon points='30,2 56,17 56,47 30,62 4,47 4,17' fill='none' stroke='%2300d4ff' stroke-width='0.8'/%3E%3C/svg%3E");
+  background-size: 60px 52px;
+}
+
+/* Mid layer: lab silhouettes — subtle opacity 0.08 */
+.lab-bg-silhouettes {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background:
+    radial-gradient(ellipse 8px 40px at 12% 80%, #00d4ff 0%, transparent 100%),
+    radial-gradient(ellipse 6px 30px at 88% 75%, #00d4ff 0%, transparent 100%),
+    radial-gradient(ellipse 14px 8px  at 12% 78%, #00d4ff 0%, transparent 100%),
+    radial-gradient(ellipse 10px 6px  at 88% 73%, #00d4ff 0%, transparent 100%),
+    radial-gradient(ellipse 4px 20px  at 20% 70%, #a855f7 0%, transparent 100%),
+    radial-gradient(ellipse 4px 15px  at 80% 65%, #a855f7 0%, transparent 100%);
+}
+
+/* Fog overlay: slow drift */
+.lab-bg-fog {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 40% at 50% 110%,
+    rgba(0,212,255,0.06) 0%, transparent 70%);
+  animation: labFogDrift 8s ease-in-out infinite alternate;
+}
+
+@keyframes labFogDrift {
+  0%   { opacity: 0.6; transform: translateY(0); }
+  100% { opacity: 1;   transform: translateY(-6px); }
+}
+
+/* ── Aura: updated to sit above lab-bg ───────────────────────────────── */
+.pet-aura {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,212,255,0.15) 0%, rgba(168,85,247,0.08) 50%, transparent 70%);
+  animation: cipherAuraPulse 3s ease-in-out infinite;
+  z-index: 1;
+}
+
+/* ── Stat bars: 8px height, glow fills, load animation ──────────────── */
+.pet-stat-bar {
+  height: 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  overflow: visible;
+}
+
+.pet-stat-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 800ms ease-out;
+  width: 0%;
+}
+
+.pet-stat-fill--hunger {
+  background: linear-gradient(90deg, #00b4d8, #00FFFF);
+  box-shadow: 0 0 10px 1px rgba(0,255,255,0.55);
+}
+
+.pet-stat-fill--happiness {
+  background: linear-gradient(90deg, #6d28d9, #8B5CF6);
+  box-shadow: 0 0 10px 1px rgba(139,92,246,0.55);
+}
+
+.pet-stat-fill--health {
+  background: linear-gradient(90deg, #059669, #00FF88);
+  box-shadow: 0 0 10px 1px rgba(0,255,136,0.5);
+}
+
+/* Critical stat: pulse red + vignette */
+.pet-stat-fill--low {
+  animation: statCriticalPulse 1s ease-in-out infinite !important;
+}
+
+@keyframes statCriticalPulse {
+  0%, 100% { background: linear-gradient(90deg, #7f1d1d, #ef4444);
+             box-shadow: 0 0 10px 2px rgba(239,68,68,0.6); }
+  50%       { background: linear-gradient(90deg, #dc2626, #ff6b6b);
+             box-shadow: 0 0 18px 4px rgba(239,68,68,0.9); }
+}
+
+/* Red vignette when any stat critical */
+.screen-vignette-red {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background: radial-gradient(ellipse at center,
+    transparent 50%, rgba(239,68,68,0.18) 100%);
+  animation: vignetteRedPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vignetteRedPulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+/* ── Float reward: +DATA uses cyan ──────────────────────────────────── */
+.float-reward--data {
+  color: #00FFFF;
+  text-shadow: 0 0 8px rgba(0,255,255,0.7), 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* ── Tap ripple ring ─────────────────────────────────────────────────── */
+.tap-ripple {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0,212,255,0.7);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0);
+  animation: tapRippleExpand 0.5s ease-out forwards;
+}
+
+@keyframes tapRippleExpand {
+  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(3.5); opacity: 0; }
 }

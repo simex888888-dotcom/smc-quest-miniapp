@@ -1500,11 +1500,11 @@ function renderPet(data) {
   const aura = document.getElementById("petAura");
   if (aura) {
     const auraColors = {
-      idle:    "rgba(255,140,66,0.18)",
-      happy:   "rgba(251,191,36,0.22)",
-      excited: "rgba(255,107,26,0.30)",
-      hungry:  "rgba(239,68,68,0.18)",
-      sick:    "rgba(126,207,106,0.18)",
+      idle:    "rgba(0,212,255,0.18)",
+      happy:   "rgba(0,255,200,0.22)",
+      excited: "rgba(0,255,255,0.32)",
+      hungry:  "rgba(239,68,68,0.20)",
+      sick:    "rgba(100,120,140,0.18)",
     };
     const c = auraColors[data.visual_state] || auraColors.idle;
     aura.style.background = `radial-gradient(circle, ${c} 0%, transparent 70%)`;
@@ -1569,9 +1569,9 @@ async function onPetTap(e) {
     const data = await res.json();
     if (!data.ok) return;
 
-    // Floating XP reward
-    _spawnFloatReward(`+${data.xp_gained} XP`, tapX, tapY,
-      data.combo > 2 ? "float-reward--combo" : "");
+    // Floating DATA reward
+    _spawnFloatReward(`+${data.xp_gained} DATA`, tapX, tapY,
+      data.combo > 2 ? "float-reward--combo" : "float-reward--data");
 
     // Combo badge
     if (data.combo > 1) _showComboBadge(data.combo);
@@ -1693,8 +1693,10 @@ function _spawnTapRipple(e, stageEl) {
   const rect = stageEl.getBoundingClientRect();
   const el = document.createElement("div");
   el.className = "tap-ripple";
-  el.style.left = (e.clientX - rect.left) + "px";
-  el.style.top  = (e.clientY - rect.top)  + "px";
+  el.style.left   = (e.clientX - rect.left) + "px";
+  el.style.top    = (e.clientY - rect.top)  + "px";
+  el.style.width  = "48px";
+  el.style.height = "48px";
   stageEl.appendChild(el);
   setTimeout(() => el.remove(), 540);
 }
@@ -1872,9 +1874,7 @@ function _applyMarketMood(data) {
     chEl.className = "hb-change " + (ch >= 0 ? "up" : "down");
   }
 
-  // State label
-  const stEl = document.getElementById("hbState");
-  if (stEl) stEl.textContent = mood.label || "";
+  // State label removed — market state shown visually through Cipher color
 
   // Dot color
   const dot = document.getElementById("hbDot");
@@ -1898,6 +1898,18 @@ function _applyMarketMood(data) {
   const aura = document.getElementById("petAura");
   if (aura && mood.aura) {
     aura.style.background = `radial-gradient(circle, ${mood.aura}30 0%, transparent 70%)`;
+  }
+
+  // BTC market color theme on Cipher — visual-only, no text label
+  const petFox = document.getElementById("petFox");
+  if (petFox && data.price_change_1h != null) {
+    const ch = data.price_change_1h;
+    petFox.classList.remove("cipher-bull-market", "cipher-bear-market");
+    if (ch >= 2) {
+      petFox.classList.add("cipher-bull-market");
+    } else if (ch <= -2) {
+      petFox.classList.add("cipher-bear-market");
+    }
   }
 }
 
