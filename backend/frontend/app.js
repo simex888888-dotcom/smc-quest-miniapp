@@ -1797,7 +1797,7 @@ function _applyMarketMood(data) {
   if (chEl && data.price_change_1h != null) {
     const ch = data.price_change_1h;
     chEl.textContent = (ch >= 0 ? "+" : "") + ch.toFixed(2) + "%";
-    chEl.className = "hb-change " + (ch >= 0 ? "up" : "down");
+    chEl.className = "btc-change " + (ch >= 0 ? "up" : "down");
   }
 
   // State label removed — market state shown visually through Cipher color
