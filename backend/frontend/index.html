@@ -11,10 +11,11 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-
-  <!-- ANIMATED BACKGROUND CANVAS -->
-  <canvas id="bgCanvas"></canvas>
-  <div class="bg-overlay"></div>
+  <!-- LAB BACKGROUND LAYERS -->
+  <div class="lab-orb lab-orb-1"></div>
+  <div class="lab-orb lab-orb-2"></div>
+  <div class="lab-orb lab-orb-3"></div>
+  <div class="scanlines"></div>
 
   <!-- ══ DEADLINE EXPIRED OVERLAY ══════════════════════════════════════════ -->
   <div id="deadlineExpiredOverlay" class="deadline-expired-overlay hidden">
@@ -328,9 +329,6 @@
             <span class="hb-ticker">BTC</span>
             <span class="hb-price" id="hbPrice">—</span>
             <span class="hb-change" id="hbChange"></span>
-          </div>
-          <div class="heartbeat-bar">
-            <canvas class="hb-canvas" id="hbCanvas" width="340" height="36"></canvas>
           </div>
         </div>
 
