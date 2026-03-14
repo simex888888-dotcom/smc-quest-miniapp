@@ -1239,16 +1239,28 @@ function _getToastContainer() {
   return c;
 }
 
-function showToast(msg, type = "info") {
+function showToast(msg, type = "info", icon = "", sub = "") {
   const container = _getToastContainer();
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-  toast.textContent = msg;
+  if (icon) {
+    const ic = document.createElement("span");
+    ic.className = "toast-icon"; ic.textContent = icon;
+    toast.appendChild(ic);
+  }
+  const txt = document.createElement("span");
+  txt.textContent = msg;
+  toast.appendChild(txt);
+  if (sub) {
+    const s = document.createElement("span");
+    s.className = "toast-sub"; s.textContent = sub;
+    toast.appendChild(s);
+  }
   container.appendChild(toast);
   setTimeout(() => {
     toast.classList.add("removing");
-    setTimeout(() => toast.remove(), 350);
-  }, 3200);
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
 }
 
 // ── DAILY BONUS DISPLAY ───────────────────────────────────────────────────
@@ -1415,11 +1427,13 @@ function renderPet(data) {
     fox.classList.add(`pet-fox--${data.visual_state || "idle"}`);
   }
 
-  // Hint
-  const hint = document.getElementById("petHint");
-  if (hint) {
-    const msg = PET_HINT_BY_STATE[data.visual_state] || PET_HINT_BY_STATE.idle;
-    hint.innerHTML = msg + `<br/><small>Активаций всего: ${data.total_taps || 0}</small>`;
+  // State-change toast (show once on transition, not every render)
+  const newState = data.visual_state || "idle";
+  if (newState !== (renderPet._lastState || "idle")) {
+    if (newState === "excited") showToast("Критический резонанс!", "success", "⚡");
+    else if (newState === "hungry") showToast("Энергия критически низкая", "error", "⚠️", "Пройди урок");
+    else if (newState === "sick")   showToast("Клеточная целостность нарушена", "error", "🧬", "Пройди квиз");
+    renderPet._lastState = newState;
   }
 
   // Aura color based on state
@@ -1496,16 +1510,25 @@ async function onPetTap(e) {
     if (!data.ok) return;
 
     // Floating DATA reward
-    _spawnFloatReward(`+${data.xp_gained} DATA`, tapX, tapY,
+    _spawnFloatReward(`+${data.data_awarded || 2} Ð`, tapX, tapY,
       data.combo > 2 ? "float-reward--combo" : "float-reward--data");
 
     // Combo badge
     if (data.combo > 1) _showComboBadge(data.combo);
 
-    // Coins milestone
+    // Update DATA counter with bump animation
+    const coinsEl = document.getElementById("petCoins");
+    if (coinsEl) {
+      coinsEl.textContent = data.total_data ?? data.coins ?? 0;
+      coinsEl.classList.remove("data-counter", "bump");
+      void coinsEl.offsetWidth;
+      coinsEl.classList.add("data-counter", "bump");
+    }
+
+    // Coins milestone bonus
     if (data.coins_earned > 0) {
       _spawnCoinBurst(data.coins_earned);
-      showToast(`Ð +${data.coins_earned} DATA UNITS! Milestone!`, "success");
+      showToast(`Milestone! +${data.coins_earned} Ð bonus`, "success", "🏆");
     }
 
     // Level up
@@ -1565,7 +1588,7 @@ function _showComboBadge(combo) {
 
 function _triggerPetLevelUp(newLevel) {
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-  showToast(`🧬 Cipher эволюционировал! Стадия ${newLevel}!`, "success");
+  showToast(`Cipher эволюционировал! Стадия ${newLevel}`, "success", "🧬");
   const flash = document.createElement("div");
   flash.className = "pet-level-up-flash";
   document.body.appendChild(flash);
@@ -1670,7 +1693,7 @@ function _enterFrenzy() {
   _frenzyActive = true;
   document.body.classList.add("frenzy-mode");
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-  showToast("💠 CRITICAL RESONANCE! x10 DATA — 8 секунд!", "success");
+  showToast("CRITICAL RESONANCE! x10 DATA — 8 сек", "success", "💠");
   const banner = document.createElement("div");
   banner.className = "frenzy-banner"; banner.id = "frenzyBanner";
   banner.textContent = "💠 CRITICAL RESONANCE — x10 DATA 💠";
@@ -1917,15 +1940,29 @@ async function showOracle() {
   }
 
   const d = _oracleData;
+
+  // Prophecy text (new field with legacy fallback)
   const textEl = document.getElementById("oracleText");
-  if (textEl) textEl.innerHTML = `«${d.text || "Рынок молчит..."}»`;
+  if (textEl) textEl.innerHTML = `«${d.prophecy || d.text || "Рынок молчит..."}»`;
 
+  // Sentiment badge
   const badge = document.getElementById("oracleConceptBadge");
-  if (badge) badge.textContent = d.concept ? `📊 ${d.concept}` : "🧬 SMC Analysis";
+  if (badge) {
+    const sentMap = {
+      bullish: "🟢 Бычий сигнал",
+      bearish: "🔴 Медвежий сигнал",
+      neutral: "⚪ Нейтральный рынок",
+    };
+    badge.textContent = sentMap[d.sentiment] || (d.concept ? `📊 ${d.concept}` : "🧬 SMC");
+    badge.className = `oracle-concept-badge oracle-sentiment--${d.sentiment || "neutral"}`;
+  }
 
+  // Price + 24h change line
   const priceEl = document.getElementById("oraclePriceLine");
-  if (priceEl && d.btc_price) {
-    priceEl.textContent = `BTC/USDT ≈ $${d.btc_price.toLocaleString("en-US")} · 4H анализ`;
+  if (priceEl) {
+    const p = d.price || d.btc_price;
+    const ch = d.change_24h || "";
+    if (p) priceEl.textContent = `BTC/USDT $${p.toLocaleString("en-US")}  ${ch}  · 4H SMC`;
   }
 
   // Inline concept quiz

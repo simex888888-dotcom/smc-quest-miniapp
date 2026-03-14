@@ -552,6 +552,15 @@ def pet_register_tap(user_id: int) -> Dict[str, Any]:
     combo = pet["tap_combo"]
     xp_gain = max(1, round(1 + (combo - 1) * 0.5))
 
+    # DATA UNITS awarded per tap (scaled by combo)
+    if combo >= 5:
+        data_tap = 10
+    elif combo >= 2:
+        data_tap = 4
+    else:
+        data_tap = 2
+    pet["coins"] = pet.get("coins", 0) + data_tap
+
     pet["happiness"] = min(100, pet.get("happiness", 0) + 2)
     pet["pet_xp"]    = pet.get("pet_xp", 0) + xp_gain
 
@@ -560,6 +569,7 @@ def pet_register_tap(user_id: int) -> Dict[str, Any]:
     pet["pet_level"] = new_level
     level_up = new_level > old_level
 
+    # Milestone bonus coins (stacks on top of per-tap)
     coins_earned = 0
     total = pet["total_taps"]
     milestone_map = {100: 10, 500: 25, 1000: 50, 5000: 100}
@@ -572,17 +582,20 @@ def pet_register_tap(user_id: int) -> Dict[str, Any]:
 
     lvl = pet["pet_level"]
     return {
-        "xp_gained":       xp_gain,
-        "combo":           combo,
-        "pet_xp":          pet["pet_xp"],
-        "pet_level":       new_level,
-        "level_up":        level_up,
-        "coins_earned":    coins_earned,
-        "visual_state":    pet["visual_state"],
-        "hunger":          round(pet["hunger"]),
-        "happiness":       round(pet["happiness"]),
-        "health":          round(pet["health"]),
-        "next_level_xp":   PET_LEVEL_XP[lvl] if lvl < 20 else None,
+        "xp_gained":        xp_gain,
+        "combo":            combo,
+        "pet_xp":           pet["pet_xp"],
+        "pet_level":        new_level,
+        "level_up":         level_up,
+        "coins_earned":     coins_earned,
+        "data_awarded":     data_tap,
+        "total_data":       pet["coins"],
+        "coins":            pet["coins"],
+        "visual_state":     pet["visual_state"],
+        "hunger":           round(pet["hunger"]),
+        "happiness":        round(pet["happiness"]),
+        "health":           round(pet["health"]),
+        "next_level_xp":    PET_LEVEL_XP[lvl] if lvl < 20 else None,
         "current_level_xp": PET_LEVEL_XP[lvl - 1],
     }
 

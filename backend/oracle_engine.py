@@ -4,6 +4,7 @@ oracle_engine.py — SMC pattern detection from Binance 4H OHLCV data.
 Detects: Fair Value Gaps, Order Blocks, Liquidity Levels.
 Formats real analysis as pet "prophecy" text. Cached 24 h.
 """
+import asyncio
 import logging
 import random
 import time
@@ -15,7 +16,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 BINANCE_BASE  = "https://api.binance.com"
-_ORACLE_TTL   = 86_400   # 24 h cache
+_ORACLE_TTL   = 14_400   # 4 h cache (was 24 h — keep it fresher)
 _oracle_cache: Dict[str, Any] = {}
 
 
@@ -25,6 +26,14 @@ async def _fetch_klines(symbol: str, interval: str, limit: int) -> List[list]:
     url = f"{BINANCE_BASE}/api/v3/klines"
     async with httpx.AsyncClient(timeout=10.0) as client:
         r = await client.get(url, params={"symbol": symbol, "interval": interval, "limit": limit})
+        r.raise_for_status()
+        return r.json()
+
+
+async def _fetch_ticker_24h(symbol: str) -> Dict[str, Any]:
+    url = f"{BINANCE_BASE}/api/v3/ticker/24hr"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        r = await client.get(url, params={"symbol": symbol})
         r.raise_for_status()
         return r.json()
 
@@ -193,28 +202,55 @@ def _prophecy(fvg, ob, liq, btc_price: float) -> str:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _get_sentiment(fvg, ob) -> str:
+    if fvg and fvg["type"] == "bullish":
+        return "bullish"
+    if ob and ob["type"] == "bullish":
+        return "bullish"
+    if fvg and fvg["type"] == "bearish":
+        return "bearish"
+    if ob and ob["type"] == "bearish":
+        return "bearish"
+    return "neutral"
+
+
 async def generate_oracle() -> Dict[str, Any]:
-    """Generate (or return cached) daily oracle. Valid for 24 h."""
+    """Generate (or return cached) oracle. Valid for 4 h."""
     now = time.time()
     cached = _oracle_cache.get("oracle")
-    if cached and now - cached.get("_ts", 0) < _ORACLE_TTL:
+    if cached and cached.get("ok") and now - cached.get("_ts", 0) < _ORACLE_TTL:
         return cached
 
     try:
-        klines = await _fetch_klines("BTCUSDT", "4h", 60)
-        price  = float(klines[-1][4])
+        klines, ticker = await asyncio.gather(
+            _fetch_klines("BTCUSDT", "4h", 60),
+            _fetch_ticker_24h("BTCUSDT"),
+        )
+        price      = float(klines[-1][4])
+        change_pct = float(ticker.get("priceChangePercent", 0))
+        change_str = ("+" if change_pct >= 0 else "") + f"{change_pct:.2f}%"
 
         fvg  = detect_fvg(klines)
         ob   = detect_order_block(klines)
         liq  = detect_liquidity(klines)
         text = _prophecy(fvg, ob, liq, price)
 
-        concept = "FVG" if fvg else ("OB" if ob else "Ликвидность")
+        sentiment = _get_sentiment(fvg, ob)
+        concept   = "FVG" if fvg else ("OB" if ob else "Ликвидность")
+
         result = {
             "ok":           True,
+            # Legacy fields (still used by parts of the UI)
             "text":         text,
             "concept":      concept,
             "btc_price":    round(price, 0),
+            # New structured fields
+            "title":        "Оракул открыл глаз",
+            "asset":        "BTC/USDT",
+            "prophecy":     text,
+            "sentiment":    sentiment,
+            "price":        round(price, 0),
+            "change_24h":   change_str,
             "fvg":          fvg,
             "ob":           ob,
             "liq":          liq,
@@ -222,16 +258,20 @@ async def generate_oracle() -> Dict[str, Any]:
             "_ts":          now,
         }
         _oracle_cache["oracle"] = result
-        logger.info(f"Oracle: concept={concept} text={text[:55]}…")
+        logger.info(f"Oracle: sentiment={sentiment} concept={concept} change={change_str}")
         return result
 
     except Exception as e:
         logger.error(f"Oracle error: {e}")
         fallback = dict(_oracle_cache.get("oracle") or {})
-        if not fallback:
-            fallback = {
-                "ok":      False,
-                "text":    "Мистические силы недоступны. Рынок молчит...",
-                "concept": "unknown",
-            }
-        return fallback
+        if fallback.get("ok"):
+            return fallback
+        return {
+            "ok":        False,
+            "text":      "Мистические силы недоступны. Попробуй позже.",
+            "prophecy":  "Мистические силы недоступны. Попробуй позже.",
+            "concept":   "unknown",
+            "sentiment": "neutral",
+            "title":     "Оракул молчит",
+            "asset":     "BTC/USDT",
+        }

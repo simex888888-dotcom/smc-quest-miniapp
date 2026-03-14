@@ -2179,12 +2179,12 @@ body::after {
 /* ── TOAST NOTIFICATIONS ─────────────────────────────────────────────── */
 .toast-container {
   position: fixed;
-  top: 80px;
+  bottom: 90px; /* above nav bar */
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   align-items: center;
   gap: 8px;
   pointer-events: none;
@@ -2193,49 +2193,50 @@ body::after {
 }
 
 .toast {
-  padding: 12px 18px;
-  border-radius: var(--radius);
-  font-size: 14px;
+  background: rgba(15, 17, 25, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0,255,255,0.2);
+  border-radius: 24px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
   font-weight: 600;
-  text-align: center;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  animation: toast-in 0.35s var(--ease-spring) both;
+  color: #fff;
+  white-space: nowrap;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
   pointer-events: auto;
-  letter-spacing: -0.01em;
-  max-width: 100%;
+  animation: toast-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-.toast.removing { animation: toast-out 0.3s var(--ease-out) forwards; }
+.toast.removing { animation: toast-out 0.25s var(--ease-out) forwards; }
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(-20px) scale(0.9); }
+  from { opacity: 0; transform: translateY(16px) scale(0.92); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes toast-out {
   from { opacity: 1; transform: translateY(0) scale(1); }
-  to   { opacity: 0; transform: translateY(-16px) scale(0.9); }
+  to   { opacity: 0; transform: translateY(8px) scale(0.95); }
 }
 
 .toast.success {
-  background: rgba(0, 50, 30, 0.95);
-  border: 1px solid rgba(0,232,122,0.4);
-  color: var(--bull);
+  border-color: rgba(0,232,122,0.3);
+  color: #d1fae5;
 }
-
 .toast.error {
-  background: rgba(50, 10, 15, 0.95);
-  border: 1px solid rgba(255,77,109,0.4);
-  color: var(--bear);
+  border-color: rgba(255,77,109,0.3);
+  color: #ffe4e6;
 }
-
 .toast.info {
-  background: rgba(18, 18, 40, 0.95);
-  border: 1px solid rgba(108,92,231,0.4);
-  color: #c4b5fd;
+  border-color: rgba(139,92,246,0.3);
+  color: #ede9fe;
 }
+.toast-icon { font-size: 16px; flex-shrink: 0; }
+.toast-sub  { font-size: 10px; color: rgba(255,255,255,0.4); margin-left: 4px; }
 
 /* ── CHART LIGHTBOX ──────────────────────────────────────────────────── */
 .chart-lightbox {
@@ -3323,12 +3324,22 @@ body::after {
 
 .pet-coin-icon { font-size: 18px; }
 
-.pet-coins-display span {
+.pet-coins-display span,
+#petCoins {
   font-size: 14px;
   font-weight: 800;
-  color: #00d4ff;
+  color: #00FFFF;
   font-family: 'JetBrains Mono', monospace;
-  text-shadow: 0 0 6px rgba(0,212,255,0.5);
+  text-shadow: 0 0 8px rgba(0,255,255,0.5);
+}
+
+/* Counter bump animation on data award */
+.data-counter { transition: transform 0.15s ease; }
+.data-counter.bump { animation: counterBump 0.3s ease; }
+@keyframes counterBump {
+  0%   { transform: scale(1); color: #00FFFF; }
+  50%  { transform: scale(1.3); color: #FFD700; text-shadow: 0 0 12px rgba(255,215,0,0.8); }
+  100% { transform: scale(1); color: #00FFFF; }
 }
 
 /* ── Hint text ───────────────────────────────────────────────────────────────── */
@@ -3636,14 +3647,29 @@ body.frenzy-mode .bg-overlay {
 
 .oracle-concept-badge {
   display: inline-block;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 14px;
   background: rgba(168,85,247,0.15);
   border: 1px solid rgba(168,85,247,0.3);
-  border-radius: 20px;
-  padding: 4px 12px;
-  font-size: 11px;
-  font-weight: 700;
   color: #a855f7;
-  margin-bottom: 14px;
+}
+.oracle-sentiment--bullish {
+  background: rgba(0,232,122,0.12);
+  border-color: rgba(0,232,122,0.35);
+  color: #00e87a;
+}
+.oracle-sentiment--bearish {
+  background: rgba(255,77,109,0.12);
+  border-color: rgba(255,77,109,0.35);
+  color: #ff4d6d;
+}
+.oracle-sentiment--neutral {
+  background: rgba(160,174,192,0.1);
+  border-color: rgba(160,174,192,0.25);
+  color: #a0aec0;
 }
 
 .oracle-text {
