@@ -317,6 +317,42 @@
     <div id="tab-pet" class="tab-content">
       <div class="pet-screen">
 
+        <!-- Market heartbeat bar -->
+        <div class="heartbeat-wrap" id="heartbeatWrap">
+          <div class="heartbeat-label">
+            <span class="hb-dot" id="hbDot"></span>
+            <span class="hb-ticker">BTC</span>
+            <span class="hb-price" id="hbPrice">—</span>
+            <span class="hb-change" id="hbChange"></span>
+            <span class="hb-state" id="hbState"></span>
+          </div>
+          <div class="heartbeat-bar">
+            <canvas class="hb-canvas" id="hbCanvas" width="340" height="36"></canvas>
+          </div>
+        </div>
+
+        <!-- Evolution badge + Oracle eye row -->
+        <div class="pet-top-row">
+          <div class="evo-badge" id="evoBadge" onclick="showEvolutionInfo()">
+            <span id="evoEmoji">🦊</span>
+            <span id="evoName">Лисёнок</span>
+            <span class="evo-stage-lbl" id="evoStage">Ст.1</span>
+          </div>
+          <button class="oracle-eye-btn" id="oracleEyeBtn" onclick="showOracle()">
+            <svg class="oracle-eye-svg" viewBox="0 0 48 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="24" cy="18" rx="22" ry="15" stroke="#a855f7" stroke-width="2" fill="none"/>
+              <circle cx="24" cy="18" r="9" fill="#a855f7" opacity="0.85"/>
+              <circle cx="24" cy="18" r="5" fill="#1a0a2e"/>
+              <circle cx="26.5" cy="15.5" r="2" fill="#fff" opacity="0.9"/>
+              <!-- Lashes -->
+              <line x1="24" y1="3"  x2="24" y2="6"  stroke="#a855f7" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="14" y1="6"  x2="16" y2="8"  stroke="#a855f7" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="34" y1="6"  x2="32" y2="8"  stroke="#a855f7" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span class="oracle-lbl">Оракул</span>
+          </button>
+        </div>
+
         <!-- Fox stage -->
         <div class="pet-stage" id="petStage">
           <div class="pet-aura" id="petAura"></div>
@@ -677,6 +713,69 @@
       </svg>
     </button>
     <div class="cl-hint">Щипок для масштаба · двойной тап для сброса</div>
+  </div>
+
+  <!-- ══ DREAM MODAL ════════════════════════════════════════════════════ -->
+  <div id="dreamModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content dream-content">
+      <div class="dream-header">
+        <div class="dream-fox-icon">🦊💤</div>
+        <div class="dream-tag">СОН ЛИСИЧКИ</div>
+      </div>
+      <div class="dream-setup" id="dreamSetup"></div>
+      <div class="dream-offline" id="dreamOfflineText"></div>
+      <div class="dream-question" id="dreamQuestion"></div>
+      <div class="dream-choices" id="dreamChoices"></div>
+      <div class="dream-result hidden" id="dreamResult"></div>
+    </div>
+  </div>
+
+  <!-- ══ ORACLE MODAL ════════════════════════════════════════════════════ -->
+  <div id="oracleModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('oracleModal')"></div>
+    <div class="modal-content oracle-content">
+      <div class="oracle-header">
+        <div class="oracle-eye-large" id="oracleEyeLarge">
+          <svg viewBox="0 0 80 60" fill="none" width="80" height="60">
+            <ellipse cx="40" cy="30" rx="38" ry="26" stroke="#a855f7" stroke-width="2.5"/>
+            <circle cx="40" cy="30" r="16" fill="#a855f7" opacity="0.9"/>
+            <circle cx="40" cy="30" r="9" fill="#1a0a2e"/>
+            <circle cx="43" cy="27" r="3.5" fill="#fff" opacity="0.9"/>
+          </svg>
+        </div>
+        <div class="oracle-title">Оракул открыл глаз</div>
+        <div class="oracle-subtitle">Лисичка видит рынок насквозь</div>
+      </div>
+      <div class="oracle-concept-badge" id="oracleConceptBadge"></div>
+      <div class="oracle-text" id="oracleText">
+        <div class="oracle-loading">Оракул смотрит в рынок...</div>
+      </div>
+      <div class="oracle-price-line" id="oraclePriceLine"></div>
+      <div class="oracle-question hidden" id="oracleQuestion">
+        <div class="oracle-q-label">Проверь понимание:</div>
+        <div class="oracle-q-text" id="oracleQText"></div>
+        <div class="oracle-q-choices" id="oracleQChoices"></div>
+      </div>
+      <button class="btn-primary oracle-close-btn" onclick="closeModal('oracleModal')">
+        Понял, закрыть
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ EVOLUTION MODAL ════════════════════════════════════════════════ -->
+  <div id="evolutionModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('evolutionModal')"></div>
+    <div class="modal-content evo-modal-content">
+      <div class="evo-particles" id="evoParticles"></div>
+      <div class="evo-emoji-big" id="evoEmojiBig">🦊</div>
+      <div class="evo-modal-title" id="evoModalTitle">Эволюция!</div>
+      <div class="evo-modal-name" id="evoModalName"></div>
+      <div class="evo-stages-list" id="evoStagesList"></div>
+      <button class="btn-primary" onclick="closeModal('evolutionModal')">
+        Потрясающе!
+      </button>
+    </div>
   </div>
 
   <script src="/static/app.js"></script>

@@ -1405,6 +1405,18 @@ async function init() {
       showDailyBonus(initData.daily_bonus_xp, initData.streak);
     }
 
+    // Evolution badge from init response
+    if (initData.evolution) renderEvolution(initData.evolution);
+
+    // Apply cached market pulse to heartbeat bar if already available
+    if (initData.market_pulse?.pet_mood) _applyMarketMood(initData.market_pulse);
+
+    // Start live heartbeat canvas + polling
+    startMarketPulse();
+
+    // Check for dream (after a short delay so UI is settled)
+    setTimeout(checkDream, 2000);
+
   } catch (e) {
     console.error("init error:", e);
     showToast("Ошибка загрузки данных", "error");
@@ -1427,9 +1439,13 @@ let _petComboTimer  = null;
 async function loadPet() {
   if (!state.userId) return;
   try {
-    const res  = await fetch(`${API}/pet/${state.userId}`);
-    const data = await res.json();
-    if (data.ok) renderPet(data);
+    const [petRes, evoRes] = await Promise.all([
+      fetch(`${API}/pet/${state.userId}`),
+      fetch(`${API}/pet/evolution/${state.userId}`),
+    ]);
+    const [petData, evoData] = await Promise.all([petRes.json(), evoRes.json()]);
+    if (petData.ok) renderPet(petData);
+    if (evoData.ok) renderEvolution(evoData);
   } catch (e) { console.error("loadPet:", e); }
 }
 
@@ -1485,6 +1501,18 @@ function renderPet(data) {
     };
     const c = auraColors[data.visual_state] || auraColors.idle;
     aura.style.background = `radial-gradient(circle, ${c} 0%, transparent 70%)`;
+  }
+
+  // Low-stat screen vignette
+  const critLow = data.health < 20 || data.hunger < 20;
+  let vignette = document.getElementById("statVignette");
+  if (critLow && !vignette) {
+    vignette = document.createElement("div");
+    vignette.id = "statVignette";
+    vignette.className = "screen-vignette-red";
+    document.body.appendChild(vignette);
+  } else if (!critLow && vignette) {
+    vignette.remove();
   }
 }
 
@@ -1631,6 +1659,548 @@ function _spawnCoinBurst(count) {
     el.style.setProperty("--tx", `translate(${tx}px,${ty}px)`);
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 950);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── FEVER / FRENZY TAP SYSTEM ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+const _tapTs = [];
+let _feverActive  = false;
+let _frenzyActive = false;
+let _feverTimer   = null;
+let _frenzyTimer  = null;
+let _frenzyRaf    = null;
+
+function _tapComboColor(combo) {
+  if (combo >= 10) return "rainbow";
+  if (combo >= 5)  return "#ef4444";
+  if (combo >= 3)  return "#f97316";
+  if (combo >= 2)  return "#fbbf24";
+  return "#fff";
+}
+
+function _spawnTapRipple(e, stageEl) {
+  if (!e || !stageEl) return;
+  const rect = stageEl.getBoundingClientRect();
+  const el = document.createElement("div");
+  el.className = "tap-ripple";
+  el.style.left = (e.clientX - rect.left) + "px";
+  el.style.top  = (e.clientY - rect.top)  + "px";
+  stageEl.appendChild(el);
+  setTimeout(() => el.remove(), 540);
+}
+
+function _spawnScreenFlash() {
+  const el = document.createElement("div");
+  el.className = "screen-flash";
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 130);
+}
+
+function _trackTapVelocity() {
+  const now = Date.now();
+  _tapTs.push(now);
+  while (_tapTs.length && now - _tapTs[0] > 3000) _tapTs.shift();
+  const tap2s = _tapTs.filter(t => now - t <= 2000).length;
+  const tap3s = _tapTs.length;
+  if (tap3s >= 10 && !_frenzyActive) _enterFrenzy();
+  else if (tap2s >= 5 && !_feverActive && !_frenzyActive) _enterFever();
+  if (_feverActive) _updateFeverCounter(tap2s);
+}
+
+function _enterFever() {
+  if (_feverActive) return;
+  _feverActive = true;
+  document.body.classList.add("fever-mode");
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+  showToast("🔥 FEVER MODE! Тапай быстрее!", "success");
+  const fc = document.createElement("div");
+  fc.className = "fever-counter"; fc.id = "feverCounter"; fc.textContent = "5";
+  document.body.appendChild(fc);
+  clearTimeout(_feverTimer);
+  _feverTimer = setTimeout(_exitFever, 5000);
+}
+
+function _exitFever() {
+  _feverActive = false;
+  document.body.classList.remove("fever-mode");
+  document.getElementById("feverCounter")?.remove();
+}
+
+function _enterFrenzy() {
+  if (_frenzyActive) return;
+  _exitFever();
+  _frenzyActive = true;
+  document.body.classList.add("frenzy-mode");
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+  showToast("⚡ FRENZY! x10 XP — 8 секунд!", "success");
+  const banner = document.createElement("div");
+  banner.className = "frenzy-banner"; banner.id = "frenzyBanner";
+  banner.textContent = "⚡ FRENZY MODE — x10 XP ⚡";
+  document.body.appendChild(banner);
+  _startCoinRain();
+  clearTimeout(_frenzyTimer);
+  _frenzyTimer = setTimeout(_exitFrenzy, 8000);
+}
+
+function _exitFrenzy() {
+  _frenzyActive = false;
+  document.body.classList.remove("frenzy-mode");
+  document.getElementById("frenzyBanner")?.remove();
+  _stopCoinRain();
+}
+
+function _updateFeverCounter(n) {
+  const el = document.getElementById("feverCounter");
+  if (!el) return;
+  el.textContent = `x${n}`;
+  el.style.animation = "none"; void el.offsetWidth;
+  el.style.animation = "counterPop 0.2s ease-out";
+}
+
+function _startCoinRain() {
+  const cv = document.createElement("canvas");
+  cv.className = "frenzy-rain-canvas"; cv.id = "frenzyCanvas";
+  cv.width = window.innerWidth; cv.height = window.innerHeight;
+  document.body.appendChild(cv);
+  const ctx = cv.getContext("2d");
+  const coins = Array.from({length: 28}, () => ({
+    x: Math.random() * cv.width, y: -40 - Math.random() * 200,
+    spd: 2 + Math.random() * 3, rot: Math.random() * 360,
+    rs: (Math.random() - 0.5) * 8, sz: 14 + Math.random() * 10,
+  }));
+  function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    coins.forEach(c => {
+      c.y += c.spd; c.rot += c.rs;
+      if (c.y > cv.height + 30) { c.y = -20; c.x = Math.random() * cv.width; }
+      ctx.save();
+      ctx.translate(c.x, c.y); ctx.rotate(c.rot * Math.PI / 180);
+      ctx.font = `${c.sz}px serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("🪙", 0, 0);
+      ctx.restore();
+    });
+    _frenzyRaf = requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function _stopCoinRain() {
+  if (_frenzyRaf) cancelAnimationFrame(_frenzyRaf);
+  document.getElementById("frenzyCanvas")?.remove();
+}
+
+// Hook fever/frenzy + ripple + flash into existing onPetTap
+const _origOnPetTap = onPetTap;
+window.onPetTap = async function(e) {
+  _trackTapVelocity();
+  _spawnTapRipple(e, document.getElementById("petStage"));
+  _spawnScreenFlash();
+  await _origOnPetTap(e);
+};
+
+// Override float reward to use combo color
+const _origSpawnFloat = _spawnFloatReward;
+function _spawnFloatRewardColored(text, px, py, combo) {
+  const container = document.getElementById("petFloatRewards");
+  if (!container) return;
+  const el = document.createElement("div");
+  const color = _tapComboColor(combo || 1);
+  const isRainbow = color === "rainbow";
+  el.className = "float-reward" + (combo >= 3 ? " float-reward--combo" : "");
+  el.textContent = text;
+  el.style.left = (px - 10) + "%";
+  el.style.top  = py + "%";
+  if (!isRainbow) el.style.color = color;
+  else el.style.background = "linear-gradient(90deg,#ff3366,#ff8c42,#fbbf24,#10b981,#a855f7)";
+  if (isRainbow) { el.style.webkitBackgroundClip = "text"; el.style.webkitTextFillColor = "transparent"; }
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 950);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── MARKET HEARTBEAT (Live BTC pulse canvas) ──────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _pulsePoints     = [];
+let _pulseSpeed      = 1.0;
+let _pulseRaf        = null;
+let _pulseOffset     = 0;
+let _lastPulseFetch  = 0;
+
+function startMarketPulse() {
+  _fetchMarketPulse();
+  setInterval(_fetchMarketPulse, 30_000);
+  _drawHeartbeat();
+}
+
+async function _fetchMarketPulse() {
+  const now = Date.now();
+  if (now - _lastPulseFetch < 25_000) return;
+  _lastPulseFetch = now;
+  try {
+    const res  = await fetch(`${API}/market/pulse`);
+    const data = await res.json();
+    if (!data.pet_mood) return;
+    _applyMarketMood(data);
+  } catch (e) { console.warn("pulse fetch:", e); }
+}
+
+function _applyMarketMood(data) {
+  const mood = data.pet_mood || {};
+
+  // Price label
+  const priceEl = document.getElementById("hbPrice");
+  if (priceEl && data.btc_price) {
+    priceEl.textContent = `$${data.btc_price.toLocaleString("en-US", {maximumFractionDigits: 0})}`;
+  }
+
+  // Change badge
+  const chEl = document.getElementById("hbChange");
+  if (chEl && data.price_change_1h != null) {
+    const ch = data.price_change_1h;
+    chEl.textContent = (ch >= 0 ? "+" : "") + ch.toFixed(2) + "%";
+    chEl.className = "hb-change " + (ch >= 0 ? "up" : "down");
+  }
+
+  // State label
+  const stEl = document.getElementById("hbState");
+  if (stEl) stEl.textContent = mood.label || "";
+
+  // Dot color
+  const dot = document.getElementById("hbDot");
+  if (dot) dot.style.background = mood.aura || "#10b981";
+
+  // Pulse speed (volatility → speed)
+  _pulseSpeed = mood.pulse_speed || 1.0;
+
+  // Update fox visual state based on market if pet tab active
+  const fox = document.getElementById("petFox");
+  if (fox && document.getElementById("tab-pet")?.classList.contains("active")) {
+    const mv = mood.visual || "idle";
+    // Only override if market state is stronger than current
+    if (["sick","excited"].includes(mv)) {
+      ["idle","happy","excited","hungry","sick"].forEach(s => fox.classList.remove(`pet-fox--${s}`));
+      fox.classList.add(`pet-fox--${mv}`);
+    }
+  }
+
+  // Update aura color
+  const aura = document.getElementById("petAura");
+  if (aura && mood.aura) {
+    aura.style.background = `radial-gradient(circle, ${mood.aura}30 0%, transparent 70%)`;
+  }
+}
+
+function _drawHeartbeat() {
+  const canvas = document.getElementById("hbCanvas");
+  if (!canvas) { _pulseRaf = requestAnimationFrame(_drawHeartbeat); return; }
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const mid = H / 2;
+  const speed = _pulseSpeed;
+
+  // Generate ECG-like wave points on demand
+  function _ecgY(x) {
+    // Combines a sine base with a sharp spike every ~80px (the "heartbeat")
+    const phase = (x + _pulseOffset * speed * 80) % 80;
+    let y = Math.sin(x * 0.08 + _pulseOffset * speed) * 4;  // baseline wobble
+    if (phase < 20) {
+      // Sharp ECG spike shape
+      if (phase < 5)       y += phase * 2.5;
+      else if (phase < 8)  y += (8 - phase) * 8;
+      else if (phase < 12) y += (phase - 8) * 6;
+      else if (phase < 16) y -= (phase - 12) * 3;
+      else                 y -= (16 - phase) * 0.5;
+    }
+    return mid - y * (3 + speed * 2);
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Glow
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0,   "rgba(168,85,247,0)");
+  grad.addColorStop(0.3, "rgba(168,85,247,0.6)");
+  grad.addColorStop(0.7, "rgba(255,140,66,0.8)");
+  grad.addColorStop(1,   "rgba(255,140,66,0)");
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = "#a855f7";
+  ctx.shadowBlur  = 6;
+
+  ctx.beginPath();
+  for (let x = 0; x < W; x++) {
+    const y = _ecgY(x);
+    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  _pulseOffset += 0.012;
+  _pulseRaf = requestAnimationFrame(_drawHeartbeat);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── ORACLE SYSTEM ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _oracleData = null;
+
+async function showOracle() {
+  if (!state.userId) return;
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+  openModal("oracleModal");
+
+  // Animate eye opening
+  const eyeEl = document.getElementById("oracleEyeLarge");
+  if (eyeEl) {
+    eyeEl.style.animation = "none"; void eyeEl.offsetWidth;
+    eyeEl.style.animation = "oracleReveal 1.2s cubic-bezier(0.34,1.56,0.64,1) forwards";
+  }
+
+  if (!_oracleData) {
+    try {
+      const res = await fetch(`${API}/oracle/daily?user_id=${state.userId}`);
+      _oracleData = await res.json();
+    } catch (e) {
+      document.getElementById("oracleText").innerHTML =
+        "<div class='oracle-loading'>Оракул временно недоступен...</div>";
+      return;
+    }
+  }
+
+  const d = _oracleData;
+  const textEl = document.getElementById("oracleText");
+  if (textEl) textEl.innerHTML = `«${d.text || "Рынок молчит..."}»`;
+
+  const badge = document.getElementById("oracleConceptBadge");
+  if (badge) badge.textContent = d.concept ? `📊 ${d.concept}` : "🦊 SMC Analysis";
+
+  const priceEl = document.getElementById("oraclePriceLine");
+  if (priceEl && d.btc_price) {
+    priceEl.textContent = `BTC/USDT ≈ $${d.btc_price.toLocaleString("en-US")} · 4H анализ`;
+  }
+
+  // Inline concept quiz
+  const qEl = document.getElementById("oracleQuestion");
+  if (qEl && d.concept) {
+    const qData = _getOracleQuiz(d.concept);
+    if (qData) {
+      document.getElementById("oracleQText").textContent = qData.q;
+      const choicesEl = document.getElementById("oracleQChoices");
+      choicesEl.innerHTML = "";
+      qData.choices.forEach((c, i) => {
+        const btn = document.createElement("button");
+        btn.className = "oracle-choice";
+        btn.textContent = c;
+        btn.onclick = () => _onOracleAnswer(i, qData.correct, btn, choicesEl);
+        choicesEl.appendChild(btn);
+      });
+      qEl.classList.remove("hidden");
+    }
+  }
+}
+window.showOracle = showOracle;
+
+function _getOracleQuiz(concept) {
+  const quizzes = {
+    "FVG": {
+      q: "Что произойдёт с FVG со временем по SMC?",
+      choices: ["Цена вернётся заполнить дисбаланс", "FVG усилится", "Уровень исчезнет", "Цена пробьёт уровень и не вернётся"],
+      correct: 0,
+    },
+    "OB": {
+      q: "Когда ордер-блок теряет силу?",
+      choices: ["Когда цена торгуется внутри него и закрывается выше/ниже", "Через 24 часа", "После 3 касаний", "OB всегда остаётся валидным"],
+      correct: 0,
+    },
+    "Ликвидность": {
+      q: "Для чего Smart Money нужна ликвидность розничных стопов?",
+      choices: ["Для исполнения крупных ордеров по лучшей цене", "Для создания тренда", "Для манипуляции индикаторами", "Для снижения волатильности"],
+      correct: 0,
+    },
+  };
+  return quizzes[concept] || null;
+}
+
+async function _onOracleAnswer(idx, correct, btn, container) {
+  const btns = container.querySelectorAll(".oracle-choice");
+  btns.forEach(b => b.disabled = true);
+  const isCorrect = idx === correct;
+  btn.classList.add(isCorrect ? "correct" : "wrong");
+  btns[correct].classList.add("correct");
+
+  if (tg?.HapticFeedback) {
+    tg.HapticFeedback.notificationOccurred(isCorrect ? "success" : "error");
+  }
+
+  try {
+    const res  = await fetch(`${API}/oracle/answer`, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({user_id: state.userId, correct: isCorrect}),
+    });
+    const data = await res.json();
+    if (isCorrect) {
+      showToast(`✅ Верно! +25 монет! Oracle: ${data.oracle_correct}/5`, "success");
+      _spawnCoinBurst(5);
+      if (data.evolution?.evolved) {
+        setTimeout(() => _showEvolutionModal(data.evolution), 1500);
+      }
+    } else {
+      showToast("❌ Неверно. Изучи материал и попробуй снова.", "error");
+    }
+  } catch (e) { console.error("oracle answer:", e); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── DREAM SYSTEM ──────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function checkDream() {
+  if (!state.userId) return;
+  try {
+    const res  = await fetch(`${API}/pet/dream/${state.userId}`);
+    const data = await res.json();
+    if (data.ok && data.has_dream) {
+      setTimeout(() => _showDreamModal(data), 1200);
+    }
+  } catch (e) { console.warn("dream check:", e); }
+}
+
+function _showDreamModal(data) {
+  const d = data.dream;
+  document.getElementById("dreamSetup").textContent = d.setup;
+  document.getElementById("dreamOfflineText").textContent =
+    `Лисичка ждала тебя ${data.offline_hours} ч. Тема: ${data.concept_meta?.name || data.concept}`;
+  document.getElementById("dreamQuestion").textContent = d.question;
+
+  const choicesEl = document.getElementById("dreamChoices");
+  choicesEl.innerHTML = "";
+  d.choices.forEach((c, i) => {
+    const btn = document.createElement("button");
+    btn.className = "dream-choice";
+    btn.textContent = c;
+    btn.onclick = () => _onDreamAnswer(i, d.correct, btn, choicesEl, data);
+    choicesEl.appendChild(btn);
+  });
+
+  document.getElementById("dreamResult").classList.add("hidden");
+  document.getElementById("dreamResult").innerHTML = "";
+  openModal("dreamModal");
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+}
+
+async function _onDreamAnswer(idx, correct, btn, container, data) {
+  const btns = container.querySelectorAll(".dream-choice");
+  btns.forEach(b => b.disabled = true);
+  const isCorrect = idx === correct;
+  btn.classList.add(isCorrect ? "correct" : "wrong");
+  btns[correct].classList.add("correct");
+
+  if (tg?.HapticFeedback) {
+    tg.HapticFeedback.notificationOccurred(isCorrect ? "success" : "error");
+  }
+
+  const resEl = document.getElementById("dreamResult");
+  resEl.classList.remove("hidden");
+
+  try {
+    const res = await fetch(`${API}/pet/dream/answer`, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({user_id: state.userId, correct: isCorrect, concept: data.concept}),
+    });
+    const r = await res.json();
+    if (isCorrect) {
+      resEl.innerHTML = `✅ <strong>Верно!</strong> Лисичка просыпается счастливой! +${r.coins_earned} монет`;
+      _spawnCoinBurst(r.coins_earned);
+      // Refresh pet stats
+      setTimeout(loadPet, 800);
+    } else {
+      const meta = data.concept_meta || {};
+      resEl.innerHTML = `❌ <strong>Неверно.</strong> Изучи урок "${meta.name || data.concept}" чтобы помочь лисичке.<br>
+        <button class="btn-primary" style="margin-top:10px;font-size:12px" onclick="closeModal('dreamModal');switchTab('lessons')">
+          Открыть уроки
+        </button>`;
+    }
+  } catch (e) { console.error("dream answer:", e); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── EVOLUTION SYSTEM ──────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderEvolution(evo) {
+  if (!evo) return;
+  const info = evo.info || {};
+  const el   = document.getElementById("evoEmoji");
+  if (el) el.textContent = info.emoji || "🦊";
+  const nm = document.getElementById("evoName");
+  if (nm) nm.textContent = info.name || "Лисёнок";
+  const st = document.getElementById("evoStage");
+  if (st) st.textContent = `Ст.${evo.stage || 1}`;
+  if (evo.evolved) {
+    setTimeout(() => _showEvolutionModal(evo), 800);
+  }
+}
+
+async function showEvolutionInfo() {
+  if (!state.userId) return;
+  try {
+    const res  = await fetch(`${API}/pet/evolution/${state.userId}`);
+    const data = await res.json();
+    _renderEvolutionStagesList(data);
+    openModal("evolutionModal");
+  } catch (e) { console.warn("evo info:", e); }
+}
+window.showEvolutionInfo = showEvolutionInfo;
+
+function _showEvolutionModal(evo) {
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+  const info = evo.info || {};
+  document.getElementById("evoEmojiBig").textContent   = info.emoji || "🦊";
+  document.getElementById("evoModalTitle").textContent = "ЭВОЛЮЦИЯ!";
+  document.getElementById("evoModalName").textContent  = info.name || "";
+  _renderEvolutionStagesList(evo);
+  _spawnEvolutionParticles();
+  openModal("evolutionModal");
+}
+
+function _renderEvolutionStagesList(evo) {
+  const listEl = document.getElementById("evoStagesList");
+  if (!listEl) return;
+  const stages = evo.all_stages || [];
+  const current = evo.stage || 1;
+  listEl.innerHTML = stages.map(s => {
+    let cls = "evo-stage-row";
+    if (s.stage < current) cls += " done";
+    if (s.stage === current) cls += " current";
+    return `<div class="${cls}">
+      <span class="evo-stage-emoji">${s.emoji}</span>
+      <span><strong>${s.name}</strong> — ${s.req}</span>
+      ${s.stage === current ? "<span style='margin-left:auto'>← Сейчас</span>" : ""}
+      ${s.stage < current ? "<span style='margin-left:auto'>✓</span>" : ""}
+    </div>`;
+  }).join("");
+}
+
+function _spawnEvolutionParticles() {
+  const container = document.getElementById("evoParticles");
+  if (!container) return;
+  container.innerHTML = "";
+  const emojis = ["✨","🌟","⭐","💫","🔱"];
+  for (let i = 0; i < 20; i++) {
+    const el = document.createElement("div");
+    el.style.cssText = `
+      position:absolute; font-size:${12+Math.random()*14}px;
+      left:${Math.random()*100}%; top:${Math.random()*100}%;
+      animation: floatUp ${0.6+Math.random()*0.8}s ease-out forwards;
+      animation-delay: ${Math.random()*0.4}s;
+    `;
+    el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 1500);
   }
 }
 

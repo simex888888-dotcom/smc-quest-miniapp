@@ -3143,3 +3143,542 @@ img { max-width: 100%; display: block; }
   0%   { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
   100% { opacity: 0; transform: var(--tx, translate(40px,-80px)) scale(0.5) rotate(180deg); }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LIVING MARKET SYSTEM — heartbeat, oracle, dream, evolution, fever/frenzy
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Heartbeat bar ─────────────────────────────────────────────────────────── */
+.heartbeat-wrap {
+  width: 100%;
+  max-width: 380px;
+  background: rgba(168, 85, 247, 0.07);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 2px;
+}
+
+.heartbeat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.hb-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: hbDotBlink 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes hbDotBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.hb-ticker { font-weight: 700; color: var(--text); font-size: 12px; }
+
+.hb-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13px;
+  flex: 1;
+}
+
+.hb-change {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+.hb-change.up   { color: #10b981; }
+.hb-change.down { color: #ef4444; }
+
+.hb-state {
+  font-size: 10px;
+  color: var(--text2);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.heartbeat-bar {
+  height: 36px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hb-canvas {
+  width: 100%;
+  height: 36px;
+  display: block;
+}
+
+/* ── Pet top row (evolution + oracle) ──────────────────────────────────────── */
+.pet-top-row {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ── Evolution badge ───────────────────────────────────────────────────────── */
+.evo-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 140, 66, 0.1);
+  border: 1px solid rgba(255, 140, 66, 0.25);
+  border-radius: 20px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex: 1;
+}
+
+.evo-badge:active { background: rgba(255, 140, 66, 0.2); }
+
+.evo-badge span { font-size: 13px; }
+
+.evo-stage-lbl {
+  font-size: 10px !important;
+  font-family: 'JetBrains Mono', monospace;
+  color: #ff8c42;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+/* ── Oracle eye button ─────────────────────────────────────────────────────── */
+.oracle-eye-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  animation: oracleGlowPulse 3s ease-in-out infinite;
+}
+
+@keyframes oracleGlowPulse {
+  0%, 100% { box-shadow: 0 0 0   rgba(168,85,247,0); }
+  50%       { box-shadow: 0 0 14px rgba(168,85,247,0.5); }
+}
+
+.oracle-eye-btn:active { background: rgba(168, 85, 247, 0.2); }
+
+.oracle-eye-svg { width: 36px; height: 27px; }
+
+.oracle-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  color: #a855f7;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── FEVER MODE (body class) ───────────────────────────────────────────────── */
+body.fever-mode .bg-overlay {
+  animation: feverPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes feverPulse {
+  0%, 100% { background: rgba(10, 14, 26, 0.55); }
+  50%       { background: rgba(255, 107, 26, 0.12); }
+}
+
+body.fever-mode .pet-stage {
+  filter: drop-shadow(0 0 30px rgba(255,140,66,0.6));
+}
+
+.fever-counter {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 32px;
+  font-weight: 900;
+  font-family: 'JetBrains Mono', monospace;
+  color: #ff8c42;
+  text-shadow: 0 0 20px rgba(255,140,66,0.8);
+  pointer-events: none;
+  z-index: 9000;
+  animation: counterPop 0.2s ease-out;
+}
+
+@keyframes counterPop {
+  0%   { transform: translateX(-50%) scale(0.5); }
+  70%  { transform: translateX(-50%) scale(1.2); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+/* ── FRENZY MODE ───────────────────────────────────────────────────────────── */
+body.frenzy-mode {
+  --frenzy-color: #ff3366;
+}
+
+body.frenzy-mode .bg-overlay {
+  animation: frenzyFlash 0.3s ease-in-out infinite;
+}
+
+@keyframes frenzyFlash {
+  0%, 100% { background: rgba(10,14,26,0.55); }
+  50%       { background: rgba(255,51,102,0.12); }
+}
+
+.frenzy-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: linear-gradient(90deg, #ff3366, #ff8c42, #ff3366);
+  background-size: 200% 100%;
+  animation: frenzyBanner 0.6s linear infinite;
+  color: #fff;
+  font-weight: 900;
+  font-size: 13px;
+  text-align: center;
+  padding: 6px;
+  z-index: 9999;
+  letter-spacing: 0.1em;
+}
+
+@keyframes frenzyBanner {
+  0%   { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.frenzy-rain-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8998;
+}
+
+/* ── Screen edge vignette for low stats ────────────────────────────────────── */
+.screen-vignette-red {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(239,68,68,0.25) 100%);
+  pointer-events: none;
+  z-index: 8900;
+  animation: vignetteRedPulse 2s ease-in-out infinite;
+}
+
+@keyframes vignetteRedPulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+/* ── Oracle modal ──────────────────────────────────────────────────────────── */
+.oracle-content {
+  text-align: center;
+  max-width: 360px;
+}
+
+.oracle-header { margin-bottom: 16px; }
+
+.oracle-eye-large {
+  margin: 0 auto 10px;
+  width: 80px; height: 60px;
+  animation: oracleReveal 1.2s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+
+@keyframes oracleReveal {
+  0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+  60%  { transform: scale(1.15) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.oracle-title {
+  font-size: 20px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.oracle-subtitle {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+.oracle-concept-badge {
+  display: inline-block;
+  background: rgba(168,85,247,0.15);
+  border: 1px solid rgba(168,85,247,0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #a855f7;
+  margin-bottom: 14px;
+}
+
+.oracle-text {
+  background: rgba(168,85,247,0.06);
+  border-left: 3px solid #a855f7;
+  border-radius: 0 10px 10px 0;
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.oracle-loading { color: var(--text2); animation: blink 1.2s infinite; }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.oracle-price-line {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 16px;
+}
+
+.oracle-question {
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: left;
+  margin-bottom: 16px;
+}
+
+.oracle-q-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a855f7;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.oracle-q-text {
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.oracle-q-choices { display: flex; flex-direction: column; gap: 6px; }
+
+.oracle-choice {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.oracle-choice:active { background: rgba(168,85,247,0.1); }
+.oracle-choice.correct { background: rgba(16,185,129,0.15); border-color: #10b981; color: #10b981; }
+.oracle-choice.wrong   { background: rgba(239,68,68,0.12);  border-color: #ef4444; color: #ef4444; }
+.oracle-close-btn { width: 100%; margin-top: 4px; }
+
+/* ── Dream modal ───────────────────────────────────────────────────────────── */
+.dream-content {
+  text-align: center;
+  max-width: 360px;
+}
+
+.dream-header { margin-bottom: 14px; }
+
+.dream-fox-icon {
+  font-size: 36px;
+  animation: dreamFloat 3s ease-in-out infinite;
+  display: block;
+  margin-bottom: 6px;
+}
+
+@keyframes dreamFloat {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+.dream-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #a855f7;
+  text-transform: uppercase;
+}
+
+.dream-setup {
+  background: linear-gradient(135deg, rgba(168,85,247,0.08), rgba(236,72,153,0.05));
+  border: 1px solid rgba(168,85,247,0.2);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  color: var(--text);
+  font-style: italic;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.dream-offline {
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 14px;
+}
+
+.dream-question {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.dream-choices { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+
+.dream-choice {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.dream-choice:active { transform: scale(0.98); }
+.dream-choice.correct { background: rgba(16,185,129,0.15); border-color: #10b981; color: #10b981; font-weight: 600; }
+.dream-choice.wrong   { background: rgba(239,68,68,0.12);  border-color: #ef4444; color: #ef4444; }
+
+.dream-result {
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Evolution modal ───────────────────────────────────────────────────────── */
+.evo-modal-content {
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.evo-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.evo-emoji-big {
+  font-size: 72px;
+  animation: evoBounce 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  display: block;
+  margin-bottom: 12px;
+}
+
+@keyframes evoBounce {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.evo-modal-title {
+  font-size: 26px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ff8c42, #fbbf24, #ff8c42);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 2s linear infinite;
+  margin-bottom: 4px;
+}
+
+.evo-modal-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+.evo-stages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.evo-stage-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.03);
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.evo-stage-row.done {
+  background: rgba(255,140,66,0.1);
+  color: var(--text);
+  border: 1px solid rgba(255,140,66,0.25);
+}
+
+.evo-stage-row.current {
+  background: rgba(251,191,36,0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.35);
+  font-weight: 700;
+}
+
+.evo-stage-emoji { font-size: 18px; flex-shrink: 0; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Ripple tap ring ───────────────────────────────────────────────────────── */
+.tap-ripple {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 140, 66, 0.7);
+  pointer-events: none;
+  animation: tapRipple 0.5s ease-out forwards;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes tapRipple {
+  0%   { width: 10px; height: 10px; opacity: 0.9; }
+  100% { width: 80px; height: 80px; opacity: 0; }
+}
+
+/* ── Screen flash on tap ───────────────────────────────────────────────────── */
+.screen-flash {
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.04);
+  pointer-events: none;
+  z-index: 9990;
+  animation: screenFlash 0.12s ease-out forwards;
+}
+
+@keyframes screenFlash {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
