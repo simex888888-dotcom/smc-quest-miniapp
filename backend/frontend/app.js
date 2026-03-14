@@ -455,6 +455,7 @@ function switchTab(name) {
   document.querySelectorAll(".tab-content").forEach(c => c.classList.toggle("active", c.id === `tab-${name}`));
   if (name === "quests")       loadQuests();
   if (name === "leaderboard")  loadLeaderboard();
+  if (name === "pet")          loadPet();
   if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
 }
 window.switchTab = switchTab;
@@ -1407,6 +1408,229 @@ async function init() {
   } catch (e) {
     console.error("init error:", e);
     showToast("Ошибка загрузки данных", "error");
+  }
+}
+
+// ── PET SYSTEM ────────────────────────────────────────────────────────────
+
+const PET_HINT_BY_STATE = {
+  idle:    "Тапай лисичку — она любит внимание! 🦊",
+  happy:   "Лисичка счастлива! Проходи уроки чтобы покормить её 🍖",
+  excited: "Лисичка в восторге! Ты молодец! 🎉",
+  hungry:  "Лисичка голодная 😢 Пройди урок чтобы покормить её!",
+  sick:    "Лисичка заболела 😷 Проходи квизы — улучшай здоровье питомца!",
+};
+
+let _petTapCooldown = false;
+let _petComboTimer  = null;
+
+async function loadPet() {
+  if (!state.userId) return;
+  try {
+    const res  = await fetch(`${API}/pet/${state.userId}`);
+    const data = await res.json();
+    if (data.ok) renderPet(data);
+  } catch (e) { console.error("loadPet:", e); }
+}
+
+function renderPet(data) {
+  // Stats
+  _setPetStat("Hunger",    data.hunger,    data.hunger);
+  _setPetStat("Happiness", data.happiness, data.happiness);
+  _setPetStat("Health",    data.health,    data.health);
+
+  // Level & XP
+  const lvl  = data.pet_level  || 1;
+  const xpC  = data.pet_xp     || 0;
+  const xpCL = data.current_level_xp || 0;
+  const xpNL = data.next_level_xp;
+  const pct  = xpNL ? Math.min(100, Math.round(((xpC - xpCL) / (xpNL - xpCL)) * 100)) : 100;
+
+  const lvlBadge = document.getElementById("petLevelBadge");
+  if (lvlBadge) lvlBadge.textContent = `Ур. ${lvl}`;
+  const xpCurEl = document.getElementById("petXpCurrent");
+  if (xpCurEl) xpCurEl.textContent = xpC;
+  const xpNxtEl = document.getElementById("petXpNext");
+  if (xpNxtEl) xpNxtEl.textContent = xpNL ?? "MAX";
+  const xpFill = document.getElementById("petXpFill");
+  if (xpFill) xpFill.style.width = pct + "%";
+
+  // Coins
+  const coinsEl = document.getElementById("petCoins");
+  if (coinsEl) coinsEl.textContent = data.coins || 0;
+
+  // Fox visual state
+  const fox = document.getElementById("petFox");
+  if (fox) {
+    ["idle","happy","excited","hungry","sick"].forEach(s => fox.classList.remove(`pet-fox--${s}`));
+    fox.classList.add(`pet-fox--${data.visual_state || "idle"}`);
+  }
+
+  // Hint
+  const hint = document.getElementById("petHint");
+  if (hint) {
+    const msg = PET_HINT_BY_STATE[data.visual_state] || PET_HINT_BY_STATE.idle;
+    hint.innerHTML = msg + `<br/><small>Тапов всего: ${data.total_taps || 0}</small>`;
+  }
+
+  // Aura color based on state
+  const aura = document.getElementById("petAura");
+  if (aura) {
+    const auraColors = {
+      idle:    "rgba(255,140,66,0.18)",
+      happy:   "rgba(251,191,36,0.22)",
+      excited: "rgba(255,107,26,0.30)",
+      hungry:  "rgba(239,68,68,0.18)",
+      sick:    "rgba(126,207,106,0.18)",
+    };
+    const c = auraColors[data.visual_state] || auraColors.idle;
+    aura.style.background = `radial-gradient(circle, ${c} 0%, transparent 70%)`;
+  }
+}
+
+function _setPetStat(statName, value, rawVal) {
+  const pct = Math.max(0, Math.min(100, Math.round(rawVal)));
+  const valEl  = document.getElementById(`pet${statName}`);
+  const fillEl = document.getElementById(`pet${statName}Bar`);
+  if (valEl)  valEl.textContent = pct;
+  if (fillEl) {
+    fillEl.style.width = pct + "%";
+    fillEl.classList.toggle("pet-stat-fill--low", pct < 25);
+  }
+}
+
+async function onPetTap(e) {
+  if (_petTapCooldown) return;
+  _petTapCooldown = true;
+  setTimeout(() => { _petTapCooldown = false; }, 200);
+
+  // Haptic
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+
+  // Tap squish animation
+  const fox = document.getElementById("petFox");
+  if (fox) {
+    fox.classList.remove("pet-fox--tapping");
+    void fox.offsetWidth; // reflow to restart
+    fox.classList.add("pet-fox--tapping");
+    setTimeout(() => fox.classList.remove("pet-fox--tapping"), 320);
+  }
+
+  // Compute tap position for floating reward
+  const stage = document.getElementById("petStage");
+  let tapX = 50, tapY = 40;
+  if (e && stage) {
+    const rect = stage.getBoundingClientRect();
+    tapX = ((e.clientX - rect.left) / rect.width  * 100);
+    tapY = ((e.clientY - rect.top)  / rect.height * 100);
+  }
+
+  try {
+    const res  = await fetch(`${API}/pet/tap`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ user_id: state.userId }),
+    });
+    const data = await res.json();
+    if (!data.ok) return;
+
+    // Floating XP reward
+    _spawnFloatReward(`+${data.xp_gained} XP`, tapX, tapY,
+      data.combo > 2 ? "float-reward--combo" : "");
+
+    // Combo badge
+    if (data.combo > 1) _showComboBadge(data.combo);
+
+    // Coins milestone
+    if (data.coins_earned > 0) {
+      _spawnCoinBurst(data.coins_earned);
+      showToast(`🪙 +${data.coins_earned} монет! Достижение!`, "success");
+    }
+
+    // Level up
+    if (data.level_up) {
+      _triggerPetLevelUp(data.pet_level);
+    }
+
+    // Update UI incrementally
+    _setPetStat("Hunger",    data.hunger,    data.hunger);
+    _setPetStat("Happiness", data.happiness, data.happiness);
+    _setPetStat("Health",    data.health,    data.health);
+
+    const lvlBadge = document.getElementById("petLevelBadge");
+    if (lvlBadge) lvlBadge.textContent = `Ур. ${data.pet_level}`;
+
+    const xpCurEl = document.getElementById("petXpCurrent");
+    if (xpCurEl) xpCurEl.textContent = data.pet_xp;
+
+    const xpNL = data.next_level_xp;
+    const xpCL = data.current_level_xp || 0;
+    const xpC  = data.pet_xp;
+    const pct  = xpNL ? Math.min(100, Math.round(((xpC - xpCL) / (xpNL - xpCL)) * 100)) : 100;
+    const xpFill = document.getElementById("petXpFill");
+    if (xpFill) xpFill.style.width = pct + "%";
+
+    // Visual state
+    if (fox) {
+      ["idle","happy","excited","hungry","sick"].forEach(s => fox.classList.remove(`pet-fox--${s}`));
+      fox.classList.add(`pet-fox--${data.visual_state || "idle"}`);
+    }
+
+  } catch (err) { console.error("pet tap:", err); }
+}
+window.onPetTap = onPetTap;
+
+function _spawnFloatReward(text, pctX, pctY, extraClass) {
+  const container = document.getElementById("petFloatRewards");
+  if (!container) return;
+  const el = document.createElement("div");
+  el.className = "float-reward" + (extraClass ? " " + extraClass : "");
+  el.textContent = text;
+  el.style.left   = (pctX - 10) + "%";
+  el.style.top    = pctY + "%";
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 950);
+}
+
+function _showComboBadge(combo) {
+  const el = document.getElementById("petCombo");
+  const tx = document.getElementById("petComboText");
+  if (!el || !tx) return;
+  tx.textContent = `x${combo} COMBO!`;
+  el.style.display = "block";
+  clearTimeout(_petComboTimer);
+  _petComboTimer = setTimeout(() => { if (el) el.style.display = "none"; }, 1800);
+}
+
+function _triggerPetLevelUp(newLevel) {
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+  showToast(`🦊 Лисичка выросла! Уровень ${newLevel}!`, "success");
+  const flash = document.createElement("div");
+  flash.className = "pet-level-up-flash";
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 850);
+}
+
+function _spawnCoinBurst(count) {
+  const fox = document.getElementById("petFox");
+  if (!fox) return;
+  const rect = fox.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top  + rect.height / 2;
+  const num = Math.min(count, 8);
+  for (let i = 0; i < num; i++) {
+    const el = document.createElement("div");
+    el.className = "coin-particle";
+    el.textContent = "🪙";
+    el.style.left = cx + "px";
+    el.style.top  = cy + "px";
+    const angle = (360 / num) * i;
+    const dist  = 60 + Math.random() * 40;
+    const tx = Math.cos(angle * Math.PI / 180) * dist;
+    const ty = Math.sin(angle * Math.PI / 180) * dist - 40;
+    el.style.setProperty("--tx", `translate(${tx}px,${ty}px)`);
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 950);
   }
 }
 
