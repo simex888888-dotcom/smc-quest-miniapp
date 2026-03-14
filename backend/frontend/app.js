@@ -517,7 +517,7 @@ function setProgress(completed, total) {
   const glow = $("#progressGlow");
   if (bar)  bar.style.width = pct + "%";
   if (glow) glow.style.left = pct + "%";
-  if ($("#progressLabel")) $("#progressLabel").textContent = `${completed}/${total} квестов`;
+  if ($("#progressLabel")) $("#progressLabel").textContent = `${completed}/${total} протоколов`;
   if ($("#progressPct"))   $("#progressPct").textContent = pct + "%";
 }
 
@@ -617,7 +617,7 @@ function renderQuests(resp) {
 
   const statDiv = el("div", "q-stat");
   const val = el("div", "q-stat-val", `${resp.completed_count || 0}/${resp.total_count || 0}`);
-  const lbl = el("div", "q-stat-lbl", "квестов завершено");
+  const lbl = el("div", "q-stat-lbl", "протоколов завершено");
   statDiv.append(val, lbl);
 
   const modDiv = el("div", "q-stat");
@@ -656,8 +656,8 @@ function renderQuests(resp) {
     container.innerHTML = `
       <div class="empty-state">
         <span class="es-icon">⚔️</span>
-        <div class="es-title">Нет активных квестов</div>
-        <p>Выполни все задания чтобы открыть следующий модуль</p>
+        <div class="es-title">Нет активных протоколов</div>
+        <p>Выполни все протоколы чтобы открыть следующий модуль</p>
       </div>`;
     return;
   }
@@ -694,7 +694,7 @@ function renderQuests(resp) {
 
     const badges = el("div", "quest-badges");
     const typeBadge = el("div", `quest-type-badge quest-type-${isBoss ? "boss" : q.type}`,
-      q.type === "quiz" ? "КВИЗ" : isBoss ? "👑 БОСС" : "ЗАДАНИЕ");
+      q.type === "quiz" ? "FIELD TEST" : isBoss ? "👑 APEX" : "ПРОТОКОЛ");
     badges.appendChild(typeBadge);
 
     const hw = state.userState?.homework_status;
@@ -715,7 +715,7 @@ function renderQuests(resp) {
     const btnLabel = q.completed
       ? "✓ Выполнено"
       : q.type === "quiz"
-        ? "▶ Начать квиз"
+        ? "▶ ЗАПУСТИТЬ FIELD TEST"
         : canResubmit
           ? "🔄 Отправить повторно"
           : "📋 Открыть задание";
@@ -921,10 +921,10 @@ async function onQuizAnswer(chosen, correctIdx, clickedBtn) {
   const fb = $("#quizFeedback");
   if (isCorrect) {
     fb.className = "quiz-feedback correct-fb";
-    fb.textContent = state.quizStreak >= 3 ? `🔥 ${state.quizStreak} в ряд! Правильно!` : "✅ Правильно!";
+    fb.textContent = state.quizStreak >= 3 ? `⚡ ${state.quizStreak} СЕРИЯ! ГИПОТЕЗА ПОДТВЕРЖДЕНА!` : "🧬 ГИПОТЕЗА ПОДТВЕРЖДЕНА";
   } else {
     fb.className = "quiz-feedback wrong-fb";
-    fb.textContent = `❌ Неверно. Правильный ответ: ${questions[current].options[correctIdx]}`;
+    fb.textContent = `⚠️ АНОМАЛИЯ ОБНАРУЖЕНА. Верный ответ: ${questions[current].options[correctIdx]}`;
   }
 
   try {
@@ -959,16 +959,23 @@ function onQuizFinished(data) {
     floatXP(data.xp_earned || 0, null);
     let msg = `Результат: ${data.correct}/${data.total} (${data.score}%)`;
     if (data.module_advanced) msg += "\n🎉 Новый модуль разблокирован!";
-    showResult("🏆", "Квиз пройден!", msg, data.xp_earned);
+    showResult("🧬", "FIELD TEST ПРОЙДЕН!", msg, data.xp_earned);
     launchConfetti(80);
     if (data.leveled_up) {
       setTimeout(() => showLevelUp(data.new_level, data.rank), 1500);
     }
     loadQuests();
     refreshHeader();
+    // Cipher stat reaction: notify user and refresh pet stats
+    setTimeout(() => {
+      showToast("⚡ Cipher получил энергию! Резонанс ↑", "success");
+      loadPet();
+    }, 2200);
   } else {
-    showResult("😤", "Попробуй снова", `Результат: ${data.correct}/${data.total} (${data.score}%)\nНужно набрать ${data.required}%`, null);
+    showResult("⚠️", "ГИПОТЕЗА НЕ ПОДТВЕРЖДЕНА", `Результат: ${data.correct}/${data.total} (${data.score}%)\nНужно набрать ${data.required}%`, null);
     if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+    // Cipher distress reaction
+    setTimeout(() => showToast("⚠️ Cipher теряет стабильность... пройди протокол заново", "error"), 1200);
   }
 }
 
@@ -1194,7 +1201,7 @@ function showResult(emoji, title, text, xp) {
   $("#resultTitle").textContent = title;
   $("#resultText").textContent  = text;
   const xpEl = $("#resultXp");
-  if (xp) { xpEl.textContent = `+${xp} XP`; xpEl.classList.remove("hidden"); }
+  if (xp) { xpEl.textContent = `+${xp} MP`; xpEl.classList.remove("hidden"); }
   else      xpEl.classList.add("hidden");
   openModal("#resultModal");
 }
@@ -1322,10 +1329,10 @@ function showDailyBonus(xp, streak) {
   if (!xp) return;
   const textEl = $("#dailyBonusText");
   const streakEl = $("#dailyStreakDisplay");
-  if (textEl) textEl.textContent = `+${xp} XP за вход сегодня`;
+  if (textEl) textEl.textContent = `+${xp} MP · ЕЖЕДНЕВНАЯ АКТИВАЦИЯ`;
   if (streakEl) {
     if (streak >= 2) {
-      streakEl.innerHTML = `<div class="streak-info">🔥 Стрик: <strong>${streak} дней</strong></div>`;
+      streakEl.innerHTML = `<div class="streak-info">⚡ СТРИК: <strong>${streak} дней</strong></div>`;
       if (streak === 7) streakEl.innerHTML += `<div class="streak-milestone">🏅 Бейдж «Неделя без пропусков» получен!</div>`;
       if (streak === 30) streakEl.innerHTML += `<div class="streak-milestone">🏆 Бейдж «Железная воля» получен!</div>`;
     }
