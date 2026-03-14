@@ -1426,11 +1426,11 @@ async function init() {
 // ── PET SYSTEM ────────────────────────────────────────────────────────────
 
 const PET_HINT_BY_STATE = {
-  idle:    "Тапай лисичку — она любит внимание! 🦊",
-  happy:   "Лисичка счастлива! Проходи уроки чтобы покормить её 🍖",
-  excited: "Лисичка в восторге! Ты молодец! 🎉",
-  hungry:  "Лисичка голодная 😢 Пройди урок чтобы покормить её!",
-  sick:    "Лисичка заболела 😷 Проходи квизы — улучшай здоровье питомца!",
+  idle:    "Активируй Cipher — тапай для резонанса 🧬",
+  happy:   "Cipher резонирует! Проходи протоколы для восстановления энергии ⚡",
+  excited: "CRITICAL RESONANCE! Cipher в состоянии возбуждения! 💠",
+  hungry:  "ALERT: Энергетический субстрат критически низкий 😢 Пройди урок!",
+  sick:    "ALERT: Клеточная целостность нарушена 😷 Срочно пройди квиз!",
 };
 
 let _petTapCooldown = false;
@@ -1463,7 +1463,7 @@ function renderPet(data) {
   const pct  = xpNL ? Math.min(100, Math.round(((xpC - xpCL) / (xpNL - xpCL)) * 100)) : 100;
 
   const lvlBadge = document.getElementById("petLevelBadge");
-  if (lvlBadge) lvlBadge.textContent = `Ур. ${lvl}`;
+  if (lvlBadge) lvlBadge.textContent = `Ст. ${lvl}`;
   const xpCurEl = document.getElementById("petXpCurrent");
   if (xpCurEl) xpCurEl.textContent = xpC;
   const xpNxtEl = document.getElementById("petXpNext");
@@ -1486,7 +1486,7 @@ function renderPet(data) {
   const hint = document.getElementById("petHint");
   if (hint) {
     const msg = PET_HINT_BY_STATE[data.visual_state] || PET_HINT_BY_STATE.idle;
-    hint.innerHTML = msg + `<br/><small>Тапов всего: ${data.total_taps || 0}</small>`;
+    hint.innerHTML = msg + `<br/><small>Активаций всего: ${data.total_taps || 0}</small>`;
   }
 
   // Aura color based on state
@@ -1572,7 +1572,7 @@ async function onPetTap(e) {
     // Coins milestone
     if (data.coins_earned > 0) {
       _spawnCoinBurst(data.coins_earned);
-      showToast(`🪙 +${data.coins_earned} монет! Достижение!`, "success");
+      showToast(`Ð +${data.coins_earned} DATA UNITS! Milestone!`, "success");
     }
 
     // Level up
@@ -1586,7 +1586,7 @@ async function onPetTap(e) {
     _setPetStat("Health",    data.health,    data.health);
 
     const lvlBadge = document.getElementById("petLevelBadge");
-    if (lvlBadge) lvlBadge.textContent = `Ур. ${data.pet_level}`;
+    if (lvlBadge) lvlBadge.textContent = `Ст. ${data.pet_level}`;
 
     const xpCurEl = document.getElementById("petXpCurrent");
     if (xpCurEl) xpCurEl.textContent = data.pet_xp;
@@ -1624,7 +1624,7 @@ function _showComboBadge(combo) {
   const el = document.getElementById("petCombo");
   const tx = document.getElementById("petComboText");
   if (!el || !tx) return;
-  tx.textContent = `x${combo} COMBO!`;
+  tx.textContent = `x${combo} РЕЗОНАНС!`;
   el.style.display = "block";
   clearTimeout(_petComboTimer);
   _petComboTimer = setTimeout(() => { if (el) el.style.display = "none"; }, 1800);
@@ -1632,7 +1632,7 @@ function _showComboBadge(combo) {
 
 function _triggerPetLevelUp(newLevel) {
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-  showToast(`🦊 Лисичка выросла! Уровень ${newLevel}!`, "success");
+  showToast(`🧬 Cipher эволюционировал! Стадия ${newLevel}!`, "success");
   const flash = document.createElement("div");
   flash.className = "pet-level-up-flash";
   document.body.appendChild(flash);
@@ -1649,7 +1649,7 @@ function _spawnCoinBurst(count) {
   for (let i = 0; i < num; i++) {
     const el = document.createElement("div");
     el.className = "coin-particle";
-    el.textContent = "🪙";
+    el.textContent = "Ð";
     el.style.left = cx + "px";
     el.style.top  = cy + "px";
     const angle = (360 / num) * i;
@@ -1715,7 +1715,7 @@ function _enterFever() {
   _feverActive = true;
   document.body.classList.add("fever-mode");
   if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
-  showToast("🔥 FEVER MODE! Тапай быстрее!", "success");
+  showToast("⚡ RESONANCE MODE! Активируй Cipher быстрее!", "success");
   const fc = document.createElement("div");
   fc.className = "fever-counter"; fc.id = "feverCounter"; fc.textContent = "5";
   document.body.appendChild(fc);
@@ -1735,10 +1735,10 @@ function _enterFrenzy() {
   _frenzyActive = true;
   document.body.classList.add("frenzy-mode");
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-  showToast("⚡ FRENZY! x10 XP — 8 секунд!", "success");
+  showToast("💠 CRITICAL RESONANCE! x10 DATA — 8 секунд!", "success");
   const banner = document.createElement("div");
   banner.className = "frenzy-banner"; banner.id = "frenzyBanner";
-  banner.textContent = "⚡ FRENZY MODE — x10 XP ⚡";
+  banner.textContent = "💠 CRITICAL RESONANCE — x10 DATA 💠";
   document.body.appendChild(banner);
   _startCoinRain();
   clearTimeout(_frenzyTimer);
@@ -1976,7 +1976,7 @@ async function showOracle() {
   if (textEl) textEl.innerHTML = `«${d.text || "Рынок молчит..."}»`;
 
   const badge = document.getElementById("oracleConceptBadge");
-  if (badge) badge.textContent = d.concept ? `📊 ${d.concept}` : "🦊 SMC Analysis";
+  if (badge) badge.textContent = d.concept ? `📊 ${d.concept}` : "🧬 SMC Analysis";
 
   const priceEl = document.getElementById("oraclePriceLine");
   if (priceEl && d.btc_price) {
@@ -2043,7 +2043,7 @@ async function _onOracleAnswer(idx, correct, btn, container) {
     });
     const data = await res.json();
     if (isCorrect) {
-      showToast(`✅ Верно! +25 монет! Oracle: ${data.oracle_correct}/5`, "success");
+      showToast(`✅ Верно! +25 Ð DATA! Oracle: ${data.oracle_correct}/5`, "success");
       _spawnCoinBurst(5);
       if (data.evolution?.evolved) {
         setTimeout(() => _showEvolutionModal(data.evolution), 1500);
@@ -2073,7 +2073,7 @@ function _showDreamModal(data) {
   const d = data.dream;
   document.getElementById("dreamSetup").textContent = d.setup;
   document.getElementById("dreamOfflineText").textContent =
-    `Лисичка ждала тебя ${data.offline_hours} ч. Тема: ${data.concept_meta?.name || data.concept}`;
+    `Cipher анализировал рынок ${data.offline_hours} ч. без тебя. Тема: ${data.concept_meta?.name || data.concept}`;
   document.getElementById("dreamQuestion").textContent = d.question;
 
   const choicesEl = document.getElementById("dreamChoices");
@@ -2113,13 +2113,13 @@ async function _onDreamAnswer(idx, correct, btn, container, data) {
     });
     const r = await res.json();
     if (isCorrect) {
-      resEl.innerHTML = `✅ <strong>Верно!</strong> Лисичка просыпается счастливой! +${r.coins_earned} монет`;
+      resEl.innerHTML = `✅ <strong>ГИПОТЕЗА ПОДТВЕРЖДЕНА!</strong> Cipher пробуждается! +${r.coins_earned} Ð DATA`;
       _spawnCoinBurst(r.coins_earned);
       // Refresh pet stats
       setTimeout(loadPet, 800);
     } else {
       const meta = data.concept_meta || {};
-      resEl.innerHTML = `❌ <strong>Неверно.</strong> Изучи урок "${meta.name || data.concept}" чтобы помочь лисичке.<br>
+      resEl.innerHTML = `❌ <strong>АНОМАЛИЯ ОБНАРУЖЕНА.</strong> Изучи протокол "${meta.name || data.concept}" для рекалибровки.<br>
         <button class="btn-primary" style="margin-top:10px;font-size:12px" onclick="closeModal('dreamModal');switchTab('lessons')">
           Открыть уроки
         </button>`;
@@ -2135,9 +2135,9 @@ function renderEvolution(evo) {
   if (!evo) return;
   const info = evo.info || {};
   const el   = document.getElementById("evoEmoji");
-  if (el) el.textContent = info.emoji || "🦊";
+  if (el) el.textContent = info.emoji || "🧬";
   const nm = document.getElementById("evoName");
-  if (nm) nm.textContent = info.name || "Лисёнок";
+  if (nm) nm.textContent = info.name || "Cell Cipher";
   const st = document.getElementById("evoStage");
   if (st) st.textContent = `Ст.${evo.stage || 1}`;
   if (evo.evolved) {
@@ -2159,8 +2159,8 @@ window.showEvolutionInfo = showEvolutionInfo;
 function _showEvolutionModal(evo) {
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
   const info = evo.info || {};
-  document.getElementById("evoEmojiBig").textContent   = info.emoji || "🦊";
-  document.getElementById("evoModalTitle").textContent = "ЭВОЛЮЦИЯ!";
+  document.getElementById("evoEmojiBig").textContent   = info.emoji || "🧬";
+  document.getElementById("evoModalTitle").textContent = "ТРАНСФОРМАЦИЯ!";
   document.getElementById("evoModalName").textContent  = info.name || "";
   _renderEvolutionStagesList(evo);
   _spawnEvolutionParticles();
@@ -2189,7 +2189,7 @@ function _spawnEvolutionParticles() {
   const container = document.getElementById("evoParticles");
   if (!container) return;
   container.innerHTML = "";
-  const emojis = ["✨","🌟","⭐","💫","🔱"];
+  const emojis = ["🧬","⚡","💠","🌑","💎","✨","〜"];
   for (let i = 0; i < 20; i++) {
     const el = document.createElement("div");
     el.style.cssText = `
