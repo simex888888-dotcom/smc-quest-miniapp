@@ -322,14 +322,11 @@
     <div id="tab-pet" class="tab-content">
       <div class="pet-screen">
 
-        <!-- Market heartbeat bar -->
-        <div class="heartbeat-wrap" id="heartbeatWrap">
-          <div class="heartbeat-label">
-            <span class="hb-dot" id="hbDot"></span>
-            <span class="hb-ticker">BTC</span>
-            <span class="hb-price" id="hbPrice">—</span>
-            <span class="hb-change" id="hbChange"></span>
-          </div>
+        <!-- BTC price pill -->
+        <div class="btc-pill" id="heartbeatWrap">
+          <span class="btc-dot" id="hbDot"></span>
+          BTC <span class="btc-price" id="hbPrice">—</span>
+          <span class="btc-change" id="hbChange"></span>
         </div>
 
         <!-- Evolution badge + Oracle eye row -->
@@ -356,6 +353,8 @@
 
         <!-- Cipher stage -->
         <div class="pet-stage" id="petStage">
+          <!-- Ambient glow behind Cipher -->
+          <div class="cipher-glow-bg" aria-hidden="true"></div>
           <!-- Lab background layers -->
           <div class="pet-lab-bg" aria-hidden="true">
             <div class="lab-bg-hexgrid"></div>

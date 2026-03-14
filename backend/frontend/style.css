@@ -207,12 +207,33 @@ body::after {
   display: none !important;
 }
 
-/* Heartbeat widget — price text only */
-.heartbeat-wrap {
-  background: rgba(255,255,255,0.03) !important;
-  backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(0,255,255,0.08) !important;
+/* BTC price pill */
+.btc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 13px;
+  color: var(--text);
 }
+.btc-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #00FF88;
+  box-shadow: 0 0 6px #00FF88;
+  flex-shrink: 0;
+}
+.btc-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: var(--text);
+}
+.btc-change { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+.btc-change.up   { color: #00FF88; }
+.btc-change.down { color: #ef4444; }
 
 /* Ensure all content sits above background layers */
 .header, nav, .nav, .tab-content,
@@ -2888,8 +2909,13 @@ body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   padding: 8px 16px 24px;
+}
+
+.pet-stats {
+  margin-top: 0;
+  padding-top: 4px;
 }
 
 /* ── Cipher stage ──────────────────────────────────────────────────────────── */
@@ -3240,10 +3266,10 @@ body::after {
 .pet-level-card {
   width: 100%;
   max-width: 380px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0 4px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -3353,24 +3379,8 @@ body::after {
    LIVING MARKET SYSTEM — heartbeat, oracle, dream, evolution, fever/frenzy
    ══════════════════════════════════════════════════════════════════════════════ */
 
-/* ── Heartbeat bar ─────────────────────────────────────────────────────────── */
-.heartbeat-wrap {
-  width: 100%;
-  max-width: 380px;
-  background: rgba(168, 85, 247, 0.07);
-  border: 1px solid rgba(168, 85, 247, 0.2);
-  border-radius: 10px;
-  padding: 8px 12px;
-  margin-bottom: 2px;
-}
-
-.heartbeat-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-  font-size: 12px;
-}
+/* ── BTC pill (replaces heartbeat card) ───────────────────────────────────── */
+/* Styles live in the lab-background block above */
 
 .hb-dot {
   width: 7px; height: 7px;
@@ -4036,22 +4046,40 @@ body.frenzy-mode .bg-overlay {
    PET SCREEN OVERHAUL — v2 (production, 60fps GPU-composited only)
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Stage: full-width, 65vh, dark radial gradient ───────────────────── */
+/* ── Stage: full-width, transparent — Cipher floats on page bg ───────── */
 .pet-stage {
   position: relative;
-  width: 100%;
-  max-width: 420px;
-  height: min(65vh, 460px);
+  width: 100vw;
+  margin-left: -16px;
+  height: 55vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 4px;
-  border-radius: 20px;
-  overflow: hidden;
-  background: radial-gradient(ellipse 70% 60% at 50% 45%,
-    #0D0F14 0%, #111520 40%, #161B27 100%);
-  box-shadow: 0 0 60px rgba(0,212,255,0.06) inset,
-              0 0 1px rgba(0,212,255,0.12);
+  margin-top: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* ── Ambient radial glow behind Cipher ───────────────────────────────── */
+.cipher-glow-bg {
+  position: absolute;
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(0,200,255,0.08) 0%,
+    transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: glowPulse 3s ease-in-out infinite;
+  z-index: 0;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); }
+  50%       { opacity: 1;   transform: translate(-50%,-50%) scale(1.15); }
 }
 
 /* ── Cipher organism: scale to fill 65% of stage height ─────────────── */
