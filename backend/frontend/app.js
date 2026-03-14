@@ -104,79 +104,6 @@ function el(tag, cls, text) {
   return e;
 }
 
-// ── CANDLESTICK CANVAS BACKGROUND ────────────────────────────────────────
-function initCanvas() {
-  const canvas = document.getElementById("bgCanvas");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-
-  function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener("resize", resize);
-
-  const candleW = 12, gap = 8, step = candleW + gap;
-  const cols = Math.ceil(window.innerWidth / step) + 4;
-  const candles = [];
-  let price = 180 + Math.random() * 100;
-
-  for (let i = 0; i < cols; i++) {
-    const change = (Math.random() - 0.46) * 18;
-    const open  = price;
-    price = Math.max(60, Math.min(380, price + change));
-    const close = price;
-    const high  = Math.max(open, close) + Math.random() * 12;
-    const low   = Math.min(open, close) - Math.random() * 12;
-    candles.push({ open, close, high, low, x: i * step });
-  }
-
-  let offset = 0;
-  let rafId = null;
-  function draw() {
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-    ctx.strokeStyle = "rgba(255,255,255,0.025)";
-    ctx.lineWidth = 1;
-    for (let y = 0; y < H; y += 60) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
-    const maxH = Math.max(...candles.map(c => c.high));
-    const minL = Math.min(...candles.map(c => c.low));
-    const range = maxH - minL || 1;
-    const scale = (H * 0.7) / range;
-    const toY = v => H * 0.15 + (maxH - v) * scale;
-
-    candles.forEach((c) => {
-      const x = c.x - offset;
-      const wx = ((x % (W + step * 2)) + W + step * 2) % (W + step * 2) - step;
-      const isBull = c.close >= c.open;
-      const bodyCol = isBull ? "rgba(0,232,122," : "rgba(255,77,109,";
-      const oY = toY(c.open), cY = toY(c.close), hY = toY(c.high), lY = toY(c.low);
-      ctx.strokeStyle = bodyCol + "0.5)";
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(wx + candleW/2, hY); ctx.lineTo(wx + candleW/2, lY); ctx.stroke();
-      ctx.shadowColor = isBull ? "#00e87a" : "#ff4d6d";
-      ctx.shadowBlur = 4;
-      ctx.fillStyle = bodyCol + "0.7)";
-      ctx.fillRect(wx, Math.min(oY, cY), candleW, Math.max(Math.abs(cY - oY), 2));
-      ctx.shadowBlur = 0;
-    });
-    offset += 0.4;
-    rafId = requestAnimationFrame(draw);
-  }
-  draw();
-
-  // Pause animation when page is hidden to save battery (especially iOS)
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    } else if (!rafId) {
-      draw();
-    }
-  });
-}
 
 // ── ONBOARDING ────────────────────────────────────────────────────────────
 let obCurrentSlide = 0;
@@ -1368,7 +1295,6 @@ window.showDeadlineExpiredScreen = showDeadlineExpiredScreen;
 
 // ── INITIAL LOAD ──────────────────────────────────────────────────────────
 async function init() {
-  initCanvas();
   initOnboarding();
 
   const info = getUserInfo();
