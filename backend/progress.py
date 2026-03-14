@@ -624,3 +624,117 @@ def add_pet_coins(user_id: int, amount: int) -> int:
     pet["coins"] = pet.get("coins", 0) + amount
     save_progress()
     return pet["coins"]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ── EVOLUTION SYSTEM ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+
+EVOLUTION_STAGES: List[Dict[str, Any]] = [
+    {"stage": 1, "name": "Лисёнок",         "emoji": "🦊",  "req": "Начало пути"},
+    {"stage": 2, "name": "Внимательная",     "emoji": "👁️",  "req": "Квиз по ордер-блокам пройден"},
+    {"stage": 3, "name": "Лиса-аналитик",   "emoji": "📊",  "req": "OB + FVG + Market Structure"},
+    {"stage": 4, "name": "Теневая лиса",    "emoji": "🌑",  "req": "Стрик 7 дней"},
+    {"stage": 5, "name": "Золотая лиса",    "emoji": "✨",  "req": "5 правильных Oracle-предсказаний"},
+    {"stage": 6, "name": "Лиса-призрак SMC","emoji": "👻",  "req": "Все модули завершены + 30-дн. стрик"},
+    {"stage": 7, "name": "Apex Fox",         "emoji": "🔱",  "req": "Топ-10 таблицы + абсолютный мастер"},
+]
+
+
+def _calc_evolution_stage(state: Dict[str, Any]) -> int:
+    pet       = state.get("pet", {})
+    completed = set(state.get("completed_quests", []))
+    streak    = state.get("streak", 0)
+    oracle_ok = pet.get("oracle_correct", 0)
+    lb_rank   = state.get("leaderboard_rank", 9999)
+
+    stage = 1
+
+    if "m3_quiz" in completed:
+        stage = 2
+
+    if all(q in completed for q in ("m1_quiz", "m3_quiz", "m4_quiz")):
+        stage = max(stage, 3)
+
+    if streak >= 7:
+        stage = max(stage, 4)
+
+    if oracle_ok >= 5:
+        stage = max(stage, 5)
+
+    if streak >= 30 and len(completed) >= 27:
+        stage = max(stage, 6)
+
+    if lb_rank <= 10 and len(completed) >= 30 and oracle_ok >= 5:
+        stage = max(stage, 7)
+
+    return stage
+
+
+def check_and_update_evolution(user_id: int) -> Dict[str, Any]:
+    """Compute new evolution stage, persist, return result."""
+    state     = get_user_state(user_id)
+    pet       = state.setdefault("pet", {})
+    new_stage = _calc_evolution_stage(state)
+    old_stage = pet.get("evolution_stage", 1)
+
+    pet["evolution_stage"] = new_stage
+    evolved = new_stage > old_stage
+    if evolved:
+        save_progress()
+
+    info = EVOLUTION_STAGES[new_stage - 1]
+    nxt  = EVOLUTION_STAGES[new_stage] if new_stage < 7 else None
+    return {
+        "stage":      new_stage,
+        "evolved":    evolved,
+        "info":       info,
+        "next_stage": nxt,
+    }
+
+
+# ── TRADER DNA ────────────────────────────────────────────────────────────────
+
+def update_trader_dna(user_id: int, event: str, value: Any = 1) -> None:
+    """
+    Accumulate lightweight DNA signals.
+    event: 'quiz_correct', 'quiz_wrong', 'tap', 'prediction_correct',
+           'prediction_wrong', 'lesson_{key}'
+    """
+    state = get_user_state(user_id)
+    dna   = state.setdefault("dna", {})
+
+    if event == "quiz_correct":
+        dna["quiz_correct"] = dna.get("quiz_correct", 0) + 1
+    elif event == "quiz_wrong":
+        dna["quiz_wrong"]   = dna.get("quiz_wrong", 0) + 1
+    elif event == "tap":
+        dna["total_taps"]   = dna.get("total_taps", 0) + 1
+    elif event == "prediction_correct":
+        dna["pred_correct"] = dna.get("pred_correct", 0) + 1
+    elif event == "prediction_wrong":
+        dna["pred_wrong"]   = dna.get("pred_wrong", 0) + 1
+    elif event.startswith("lesson_"):
+        key = event[7:]
+        lessons = dna.setdefault("lessons_studied", {})
+        lessons[key] = lessons.get(key, 0) + 1
+
+    save_progress()
+
+
+def get_trader_dna(user_id: int) -> Dict[str, Any]:
+    state = get_user_state(user_id)
+    dna   = state.get("dna", {})
+    qc    = dna.get("quiz_correct", 0)
+    qw    = dna.get("quiz_wrong",   0)
+    pc    = dna.get("pred_correct", 0)
+    pw    = dna.get("pred_wrong",   0)
+    acc   = round(qc / (qc + qw) * 100) if (qc + qw) > 0 else None
+    pred  = round(pc / (pc + pw) * 100) if (pc + pw) > 0 else None
+    return {
+        "quiz_accuracy":       acc,
+        "prediction_accuracy": pred,
+        "total_taps":          dna.get("total_taps", 0),
+        "lessons_studied":     dna.get("lessons_studied", {}),
+        "raw":                 dna,
+    }

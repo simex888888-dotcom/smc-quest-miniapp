@@ -37,7 +37,12 @@ from progress import (
     # Pet system
     get_pet_state, pet_register_tap, apply_lesson_pet_effect, add_pet_coins,
     PET_LEVEL_XP,
+    # Evolution + DNA
+    check_and_update_evolution, EVOLUTION_STAGES, update_trader_dna, get_trader_dna,
 )
+from market_feed import refresh_market_data, start_market_feed_loop, get_cached_pulse
+from oracle_engine import generate_oracle
+from dream_generator import generate_dream
 from lessons import LESSONS, MODULES
 from quests import QUESTS, QUIZZES
 from charts import generate_chart
@@ -123,6 +128,17 @@ class PenaltyPaymentRequest(BaseModel):
 
 class PetTapRequest(BaseModel):
     user_id: int
+
+
+class OracleAnswerRequest(BaseModel):
+    user_id: int
+    correct: bool
+
+
+class DreamAnswerRequest(BaseModel):
+    user_id: int
+    correct: bool
+    concept: Optional[str] = None
 
 
 # ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -252,12 +268,22 @@ async def user_init(req: UserInitRequest):
     if state["module_index"] == 0 and not state.get("module_deadline"):
         set_module_deadline(state)
 
+    # Track last_online for dream system
+    state["last_online"] = datetime.utcnow().isoformat()
+
     # Track daily streak
     streak, is_new_day = update_streak(req.user_id)
 
     # Daily bonus XP (also calls save_progress internally)
     daily_xp, got_bonus = claim_daily_bonus(req.user_id)
 
+    # Update evolution stage
+    evo = check_and_update_evolution(req.user_id)
+
+    # Pulse (non-blocking: return cached if available)
+    pulse = get_cached_pulse()
+
+    save_progress()
     # Note: update_streak and claim_daily_bonus already call save_progress()
     # Only save if name changed and neither function triggered a save
     if not is_new_day and not got_bonus:
@@ -268,6 +294,8 @@ async def user_init(req: UserInitRequest):
         "streak": streak,
         "is_new_day": is_new_day,
         "daily_bonus_xp": daily_xp if got_bonus else 0,
+        "evolution": evo,
+        "market_pulse": pulse,
     }
 
 
@@ -840,6 +868,101 @@ async def webhook(request: Request):
     return {"ok": True}
 
 
+# ── MARKET PULSE ──────────────────────────────────────────────────────────────
+
+@app.get("/api/market/pulse")
+async def market_pulse_endpoint():
+    data = await refresh_market_data()
+    return data
+
+
+# ── ORACLE ────────────────────────────────────────────────────────────────────
+
+@app.get("/api/oracle/daily")
+async def oracle_daily(user_id: int):
+    oracle = await generate_oracle()
+    # Mark that user viewed the oracle today
+    state = get_user_state(user_id)
+    pet   = state.setdefault("pet", {})
+    pet["oracle_viewed_today"] = True
+    save_progress()
+    return oracle
+
+
+@app.post("/api/oracle/answer")
+async def oracle_answer(req: OracleAnswerRequest):
+    state = get_user_state(req.user_id)
+    pet   = state.setdefault("pet", {})
+    if req.correct:
+        pet["oracle_correct"] = pet.get("oracle_correct", 0) + 1
+        add_pet_coins(req.user_id, 25)
+        pet["happiness"] = min(100, pet.get("happiness", 0) + 15)
+        update_trader_dna(req.user_id, "prediction_correct")
+    else:
+        update_trader_dna(req.user_id, "prediction_wrong")
+    save_progress()
+    evo = check_and_update_evolution(req.user_id)
+    return {
+        "ok":            True,
+        "oracle_correct":pet.get("oracle_correct", 0),
+        "coins_earned":  25 if req.correct else 0,
+        "evolution":     evo,
+    }
+
+
+# ── DREAM SYSTEM ──────────────────────────────────────────────────────────────
+
+@app.get("/api/pet/dream/{user_id}")
+async def pet_dream_get(user_id: int):
+    state = get_user_state(user_id)
+    dream = await generate_dream(user_id, state)
+    # Update last_online AFTER dream check (dream check uses the old value)
+    state["last_online"] = datetime.utcnow().isoformat()
+    save_progress()
+    if not dream:
+        return {"ok": True, "has_dream": False}
+    return dream
+
+
+@app.post("/api/pet/dream/answer")
+async def pet_dream_answer(req: DreamAnswerRequest):
+    state = get_user_state(req.user_id)
+    pet   = state.setdefault("pet", {})
+    pet["last_dream_shown"] = datetime.utcnow().isoformat()
+
+    coins = 0
+    xp_   = 0
+    if req.correct:
+        coins = 20
+        xp_   = 12
+        add_pet_coins(req.user_id, coins)
+        pet["happiness"] = min(100, pet.get("happiness", 0) + 20)
+        pet["hunger"]    = min(100, pet.get("hunger", 0) + 10)
+        if req.concept:
+            update_trader_dna(req.user_id, "quiz_correct")
+    else:
+        if req.concept:
+            update_trader_dna(req.user_id, "quiz_wrong")
+
+    save_progress()
+    return {"ok": True, "correct": req.correct, "coins_earned": coins, "xp_earned": xp_}
+
+
+# ── EVOLUTION ─────────────────────────────────────────────────────────────────
+
+@app.get("/api/pet/evolution/{user_id}")
+async def pet_evolution(user_id: int):
+    evo = check_and_update_evolution(user_id)
+    return {"ok": True, **evo, "all_stages": EVOLUTION_STAGES}
+
+
+# ── TRADER DNA ────────────────────────────────────────────────────────────────
+
+@app.get("/api/user/dna/{user_id}")
+async def user_dna(user_id: int):
+    return {"ok": True, **get_trader_dna(user_id)}
+
+
 # ── PET SYSTEM ────────────────────────────────────────────────────────────────
 
 # Map quiz_ref → lesson_key for pet effects on quiz completion
@@ -888,3 +1011,6 @@ async def on_startup():
         setup_webhook()
     else:
         logger.info("WEBHOOK_URL not set — webhook not configured (polling mode)")
+    # Start live market feed in background
+    asyncio.create_task(start_market_feed_loop())
+    logger.info("Market feed background task started")
